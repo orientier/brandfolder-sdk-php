@@ -335,8 +335,8 @@ class Brandfolder {
    *
    * @param string|null $brandfolder_id
    * @param bool $simple_format
-   *  If true, return a flat array keyed by label IDs and containing label 
-   *  names. 
+   *  If true, return a flat array keyed by label IDs and containing label
+   *  names.
    *
    * @return array|false
    *
@@ -361,11 +361,18 @@ class Brandfolder {
           }
         }
         else {
+          // First, group labels by tier/depth so we can then process with
+          // confidence that any given label's ancestors have already been
+          // placed in the structured array.
           $labels_by_tier = [];
           foreach ($content->data as $label) {
-            $labels_by_tier[$label->attributes->depth][$label->attributes->position] = $label;
+            $unique_and_sortable_key = $label->attributes->position . '_' . $label->id;
+            $labels_by_tier[$label->attributes->depth][$unique_and_sortable_key] = $label;
           }
           foreach ($labels_by_tier as $tier => $labels) {
+            // Sort labels by position (it's OK if labels from various parents
+            // are interspersed at this point).
+            ksort($labels, SORT_NATURAL);
             foreach ($labels as $label) {
               $lineage = $label->attributes->path;
               // Remove the label itself from the end of the path array.
