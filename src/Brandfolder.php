@@ -575,9 +575,9 @@ class Brandfolder {
    * Create a new asset.
    *
    * @param string $name
-   * @param string $description
    * @param array $attachments
    * @param string $section
+   * @param string $description
    * @param string $brandfolder
    * @param string $collection
    *
@@ -586,7 +586,7 @@ class Brandfolder {
    *
    * @see https://developer.brandfolder.com/#create-assets
    */
-  public function createAsset($name, $description = NULL, $attachments, $section, $brandfolder = NULL, $collection = NULL) {
+  public function createAsset($name, $attachments, $section, $description = NULL, $brandfolder = NULL, $collection = NULL) {
     $asset = [
       'name'        => $name,
       'attachments' => $attachments,
