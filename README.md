@@ -1,3 +1,12 @@
+# Important Version Note
+************************
+`dev-master` is available for backward compatibility only, and is not 
+anticipated to receive any further updates. 
+Ongoing development will support `dev-main` and/or others. 
+Please consult documentation and make the switch to the newer 
+version(s), after testing, when possible.
+************************
+
 # The Official PHP Brandfolder SDK
 
 [![GitHub](https://img.shields.io/github/license/brandfolder/brandfolder-sdk-php)](https://github.com/brandfolder/brandfolder-sdk-php/blob/master/LICENSE)
