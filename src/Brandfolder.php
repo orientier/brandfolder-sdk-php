@@ -5,6 +5,9 @@ namespace Brandfolder;
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
+use GuzzleHttp\Exception\InvalidArgumentException;
+use GuzzleHttp\Utils as GuzzleUtils;
+use stdClass;
 
 /**
  * Brandfolder library.
@@ -20,35 +23,35 @@ class Brandfolder {
    *
    * @var string $version
    */
-  public $version = self::VERSION;
+  public string $version = self::VERSION;
 
   /**
    * The status code of the most recent operation, if applicable.
    *
    * @var int $status
    */
-  public $status;
+  public int $status;
 
   /**
    * A useful message pertaining to the most recent operation, if applicable.
    *
    * @var string $message
    */
-  public $message;
+  public string $message;
 
   /**
    * HTTP client.
    *
-   * @var ClientInterface $client
+   * @var null|ClientInterface $client
    */
-  protected $client;
+  protected null|ClientInterface $client;
 
   /**
    * The REST API endpoint.
    *
    * @var string $endpoint
    */
-  protected $endpoint = 'https://brandfolder.com/api/v4';
+  protected string $endpoint = 'https://brandfolder.com/api/v4';
 
   /**
    * The Brandfolder API key with which to authenticate
@@ -56,28 +59,27 @@ class Brandfolder {
    *
    * @var string $api_key
    */
-  private $api_key;
+  private string $api_key;
 
   /**
    * The Brandfolder to use for Brandfolder-specific requests, when no other
    * Brandfolder is specified.
    *
-   * @var string $default_brandfolder_id
+   * @var string|null $default_brandfolder_id
    *
    * @todo setBrandfolder() method.
    */
-  public $default_brandfolder_id;
+  public ?string $default_brandfolder_id;
 
   /**
    * The collection to use for collection-specific requests, when no other
    * collection is specified.
    *
-   * @var string $default_collection_id
+   * @var string|null $default_collection_id
    *
    * @todo setCollection() method.
    */
-  public $default_collection_id;
-
+  public ?string $default_collection_id;
 
   /**
    * The default number of items to fetch per GET request. Corresponds to the
@@ -85,31 +87,34 @@ class Brandfolder {
    *
    * @var int $default_items_per_page
    */
-  public $default_items_per_page = 100;
+  public int $default_items_per_page = 100;
 
   /**
    * Flag for enabling verbose logging/recording.
    *
    * @var bool $verbose_logging_mode
    */
-  protected $verbose_logging_mode = FALSE;
+  protected bool $verbose_logging_mode = false;
 
   /**
    * Internal storage for logging/recording data.
    *
    * @var array $log_data
    */
-  protected $log_data;
+  protected array $log_data;
 
   /**
    * Brandfolder constructor.
    *
    * @param string $api_key
+   * @param string|null $brandfolder_id
    * @param \GuzzleHttp\ClientInterface|NULL $client
    */
-  public function __construct($api_key, $brandfolder_id = NULL, ClientInterface $client = NULL) {
+  public function __construct(string $api_key, string $brandfolder_id = NULL, ClientInterface $client = NULL) {
     $this->api_key = $api_key;
     $this->clearLogData();
+    $this->status = 0;
+    $this->message = '';
 
     if (!is_null($brandfolder_id)) {
       $this->default_brandfolder_id = $brandfolder_id;
@@ -123,19 +128,19 @@ class Brandfolder {
 
   /**
    * Compatibility wrapper to support various json-encode methods.
-   * 
+   *
    * @param $data
    *
-   * @return mixed
+   * @return false|string
    */
-  protected function jsonEncode($data) {
-    $result = FALSE;
+  protected function jsonEncode($data): false|string {
+    $result = false;
     try {
       if (method_exists('\GuzzleHttp\Utils', 'jsonEncode')) {
-        $result = \GuzzleHttp\Utils::jsonEncode($data);
+        $result = GuzzleUtils::jsonEncode($data);
       }
       elseif (method_exists('\GuzzleHttp', 'json_encode')) {
-        $result = \GuzzleHttp\json_decode($data);
+        $result = \GuzzleHttp\json_encode($data);
       }
       elseif (function_exists('json_encode')) {
         $result = json_encode($data);
@@ -145,26 +150,26 @@ class Brandfolder {
         $this->message = 'No JSON encoding function found.';
       }
     }
-    catch (\GuzzleHttp\Exception\InvalidArgumentException $e) {
+    catch (InvalidArgumentException $e) {
       $this->status = 0;
       $this->message = $e->getMessage();
     }
-    
+
     return $result;
   }
-  
+
   /**
    * Compatibility wrapper to support various json-decode methods.
-   * 
+   *
    * @param $data
    *
    * @return mixed
    */
-  protected function jsonDecode($data) {
-    $result = FALSE;
+  protected function jsonDecode($data): mixed {
+    $result = false;
     try {
       if (method_exists('\GuzzleHttp\Utils', 'jsonDecode')) {
-        $result = \GuzzleHttp\Utils::jsonDecode($data);
+        $result = GuzzleUtils::jsonDecode($data);
       }
       elseif (method_exists('\GuzzleHttp', 'json_decode')) {
         $result = \GuzzleHttp\json_decode($data);
@@ -177,22 +182,24 @@ class Brandfolder {
         $this->message = 'No JSON encoding function found.';
       }
     }
-    catch (\GuzzleHttp\Exception\InvalidArgumentException $e) {
+    catch (InvalidArgumentException $e) {
       $this->status = 0;
       $this->message = $e->getMessage();
     }
-    
+
     return $result;
   }
 
   /**
    * Gets Brandfolder Organizations to which the current user belongs.
    *
-   * @return object|FALSE
+   * @param array $query_params
+   *
+   * @return object|false
    *
    * @see https://developers.brandfolder.com/?http#list-organizations
    */
-  public function getOrganizations($query_params = []) {
+  public function getOrganizations(array $query_params = []): object|false {
     $result = $this->getAll('/organizations', $query_params);
 
     $this->processResultData($result);
@@ -204,16 +211,16 @@ class Brandfolder {
    * Gets Brandfolders to which the current user has access.
    *
    * @param array $query_params
-   * @param bool $simple_format If TRUE, return a flat array whose keys are
-   *  Brandfolder IDs and whose values are Brandfolder names. If FALSE, return
+   * @param bool $simple_format If true, return a flat array whose keys are
+   *  Brandfolder IDs and whose values are Brandfolder names. If false, return
    *  the full result object with all core Brandfolder data and any included
    *  data.
    *
-   * @return array|object|FALSE
+   * @return array|object|false
    *
    * @see https://developers.brandfolder.com/?http#list-brandfolders
    */
-  public function getBrandfolders($query_params = [], $simple_format = TRUE) {
+  public function getBrandfolders(array $query_params = [], bool $simple_format = true): object|bool|array {
     $bf_data = $this->getAll('/brandfolders', $query_params);
     if ($bf_data) {
       if ($simple_format) {
@@ -229,7 +236,7 @@ class Brandfolder {
       }
     }
 
-    return FALSE;
+    return false;
   }
 
   /**
@@ -237,26 +244,29 @@ class Brandfolder {
    *
    * @param array $query_params
    *
+   * @return object|false
+   * 
    * @see https://developers.brandfolder.com/?http#list-collections
    */
-  public function getCollectionsForUser($query_params = []) {
+  public function getCollectionsForUser(array $query_params = []): object|false {
     return $this->getAll('/collections', $query_params);
   }
 
   /**
    * Gets Collections belonging to a certain Brandfolder.
    *
+   * @param string|null $brandfolder_id
    * @param array $query_params
-   * @param bool $simple_format If TRUE, return a flat array whose keys are
-   *  collection IDs and whose values are collection names. If FALSE, return
+   * @param bool $simple_format If true, return a flat array whose keys are
+   *  collection IDs and whose values are collection names. If false, return
    *  the full result object with all core collection data and any included
    *  data.
    *
-   * @return array|object|FALSE
+   * @return array|object|false
    *
    * @see https://developers.brandfolder.com/?http#list-collections
    */
-  public function getCollectionsInBrandfolder($brandfolder_id = NULL, $query_params = [], $simple_format = TRUE) {
+  public function getCollectionsInBrandfolder(string $brandfolder_id = NULL, array $query_params = [], bool $simple_format = true): array|object|false {
     if (is_null($brandfolder_id)) {
       // @todo $this->getBrandfolder().
       $brandfolder_id = $this->default_brandfolder_id;
@@ -278,7 +288,7 @@ class Brandfolder {
       }
     }
 
-    return FALSE;
+    return false;
   }
 
   /**
@@ -290,11 +300,11 @@ class Brandfolder {
    *  If true, return a flat array whose keys are section IDs and whose values
    *  are section names.
    *
-   * @return array|object|FALSE
+   * @return array|object|false
    *
    * @see https://developers.brandfolder.com/?http#sections
    */
-  public function listSectionsInBrandfolder($brandfolder_id = NULL, $query_params = [], $simple_format = FALSE) {
+  public function listSectionsInBrandfolder(string $brandfolder_id = NULL, array $query_params = [], bool $simple_format = false): array|object|false {
     if (is_null($brandfolder_id)) {
       $brandfolder_id = $this->default_brandfolder_id;
     }
@@ -315,7 +325,7 @@ class Brandfolder {
       }
     }
 
-    return FALSE;
+    return false;
   }
 
   /**
@@ -330,11 +340,11 @@ class Brandfolder {
    *  exist in Brandfolder for a given field. If false, return an array whose
    *  keys are custom field ids and whose values are custom field names.
    *
-   * @return array|object|FALSE
+   * @return array|object|false
    *
    * @see https://developer.brandfolder.com/docs/#list-custom-field-keys-for-a-brandfolder
    */
-  public function listCustomFields($brandfolder_id = NULL, bool $include_values = FALSE, $simple_format = FALSE) {
+  public function listCustomFields(string $brandfolder_id = NULL, bool $include_values = false, bool $simple_format = false): array|object|false {
     if (is_null($brandfolder_id)) {
       $brandfolder_id = $this->default_brandfolder_id;
     }
@@ -374,7 +384,7 @@ class Brandfolder {
       }
     }
 
-    return FALSE;
+    return false;
   }
 
   /**
@@ -386,11 +396,11 @@ class Brandfolder {
    *  If true, return a flat array keyed by label IDs and containing label
    *  names.
    *
-   * @return array|FALSE
+   * @return array|false
    *
    * @see https://developers.brandfolder.com/?http#list-labels
    */
-  public function listLabelsInBrandfolder($brandfolder_id = NULL, $simple_format = FALSE) {
+  public function listLabelsInBrandfolder(string $brandfolder_id = NULL, bool $simple_format = false): array|false {
     if (is_null($brandfolder_id)) {
       $brandfolder_id = $this->default_brandfolder_id;
     }
@@ -399,7 +409,7 @@ class Brandfolder {
 
     if (!$labels_result) {
 
-      return FALSE;
+      return false;
     }
 
     $structured_labels = [];
@@ -457,14 +467,14 @@ class Brandfolder {
   /**
    * Fetches an individual asset.
    *
-   * @param $asset_id
-   * @param array $query_params
+   * @param string $asset_id
+   * @param array|null $query_params
    *
-   * @return object|FALSE
+   * @return object|false
    *
    * @see https://developers.brandfolder.com/?python#fetch-an-asset
    */
-  public function fetchAsset($asset_id, $query_params = []) {
+  public function fetchAsset(string $asset_id, ?array $query_params = []): object|bool {
     $result = $this->request('GET', "/assets/$asset_id", $query_params);
 
     if ($result) {
@@ -478,14 +488,14 @@ class Brandfolder {
    * Update an existing attachment.
    *
    * @param string $attachment_id
-   * @param string $url
-   * @param string $filename
+   * @param string|null $url
+   * @param string|null $filename
    *
-   * @return object|FALSE
+   * @return object|false
    *
    * @see https://developers.brandfolder.com/#update-an-attachment
    */
-  public function updateAttachment($attachment_id, $url = NULL, $filename = NULL) {
+  public function updateAttachment(string $attachment_id, string $url = NULL, string $filename = NULL): object|false {
     $attributes = [];
     if (!is_null($url)) {
       $attributes['url'] = $url;
@@ -508,11 +518,11 @@ class Brandfolder {
    * @param string $attachment_id
    * @param array|null $params
    *
-   * @return object|FALSE
+   * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#fetch-an-attachment
    */
-  public function fetchAttachment(string $attachment_id, $params = []) {
+  public function fetchAttachment(string $attachment_id, ?array $params = []): object|false {
     $result = $this->request('GET', "/attachments/$attachment_id", $params);
 
     if ($result) {
@@ -527,13 +537,13 @@ class Brandfolder {
    *
    * @param string $attachment_id
    *
-   * @return bool TRUE on successful deletion. FALSE on failure.
+   * @return bool true on successful deletion. false on failure.
    *
    * @see https://developers.brandfolder.com/docs/#delete-an-attachment
    */
-  public function deleteAttachment($attachment_id) {
+  public function deleteAttachment(string $attachment_id): bool {
     $result = $this->request('DELETE', "/attachments/$attachment_id");
-    $is_success = $result !== FALSE;
+    $is_success = $result !== false;
 
     return $is_success;
   }
@@ -544,15 +554,15 @@ class Brandfolder {
    * @param string $name
    * @param array $attachments
    * @param string $section
-   * @param string $description
-   * @param string $brandfolder
-   * @param string $collection
+   * @param string|null $description
+   * @param string|null $brandfolder
+   * @param string|null $collection
    *
-   * @return object|FALSE
+   * @return object|false
    *
    * @see https://developer.brandfolder.com/#create-assets
    */
-  public function createAsset($name, $attachments, $section, $description = NULL, $brandfolder = NULL, $collection = NULL) {
+  public function createAsset(string $name, array $attachments, string $section, string $description = NULL, string $brandfolder = NULL, string $collection = NULL): object|false {
     $asset = [
       'name'        => $name,
       'attachments' => $attachments,
@@ -568,7 +578,7 @@ class Brandfolder {
       return $result->data[0];
     }
 
-    return FALSE;
+    return false;
   }
 
   /**
@@ -580,14 +590,14 @@ class Brandfolder {
    *    'description' (optional string)
    *    'attachments' (array)
    * @param string $section
-   * @param string $brandfolder
-   * @param string $collection
+   * @param string|null $brandfolder
+   * @param string|null $collection
    *
-   * @return array|FALSE
+   * @return array|false
    *
    * @see https://developer.brandfolder.com/#create-assets
    */
-  public function createAssets($assets, $section, $brandfolder = NULL, $collection = NULL) {
+  public function createAssets(array $assets, string $section, string $brandfolder = NULL, string $collection = NULL): array|false{
     if (is_null($brandfolder) && is_null($collection)) {
       if (!is_null($this->default_brandfolder_id)) {
         $brandfolder = $this->default_brandfolder_id;
@@ -605,7 +615,7 @@ class Brandfolder {
     if (!isset($endpoint)) {
       $this->message = 'A Brandfolder or a collection must be specified when creating an asset.';
 
-      return FALSE;
+      return false;
     }
 
     $body = [
@@ -623,7 +633,7 @@ class Brandfolder {
     }
     else {
 
-      return FALSE;
+      return false;
     }
   }
 
@@ -635,11 +645,11 @@ class Brandfolder {
    * @param null $description
    * @param null $attachments
    *
-   * @return object|FALSE
+   * @return object|false
    *
    * @see https://developers.brandfolder.com/#update-an-asset
    */
-  public function updateAsset($asset_id, $name = NULL, $description = NULL, $attachments = NULL) {
+  public function updateAsset(string $asset_id, $name = NULL, $description = NULL, $attachments = NULL): object|false {
     $attributes = [];
     if (!is_null($name)) {
       $attributes['name'] = $name;
@@ -665,7 +675,7 @@ class Brandfolder {
     }
     else {
 
-      return FALSE;
+      return false;
     }
   }
 
@@ -677,15 +687,16 @@ class Brandfolder {
    *  Associative array with key-value pairs. The key should identify the custom
    *  field (by name or ID, depending on the $field_key_type param), and the value
    *  should be the value you wish to store on the given asset for that field.
-   * @param string $field_key_type If 'name' (default), the $custom_field_values
-   *  array should be keyed by custom field names (e.g. "eye-color"). If 'id',
-   *  the $custom_field_values array should be keyed by custom field IDs
-   *  (e.g. "h3689xgmx2jx558xxnt16xp"). Note: 'name' mode is more convenient,
-   *  but (a) requires an extra API call to look up the custom field IDs, and
+   * @param string|null $field_key_type If 'name' (default), the
+   *  $custom_field_values array should be keyed by custom field names
+   *  (e.g. "eye-color"). If 'id', the $custom_field_values array should be
+   *  keyed by custom field IDs (e.g. "h3689xgmx2jx558xxnt16xp").
+   *  Note: 'name' mode is more convenient, but
+   *  (a) requires an extra API call to look up the custom field IDs, and
    *  (b) can cause functionality to break if you are invoking this method with
    *  a hard-coded name and the custom field's name is subsequently changed.
    *
-   * @return bool TRUE if all requests on success, FALSE otherwise.
+   * @return bool true if all requests on success, false otherwise.
    *
    * @see https://developer.brandfolder.com/#create-custom-fields-for-an-asset
    *
@@ -696,19 +707,19 @@ class Brandfolder {
    *
    * @todo: Add a separate method such as "setCustomFieldValues()," designed to more directly work with the new endpoint, which is geared toward updating multiple assets with various values for the same custom field.
    */
-  public function addCustomFieldsToAsset($asset_id, $custom_field_values, $field_key_type = 'name') {
-    $is_total_success = TRUE;
+  public function addCustomFieldsToAsset(string $asset_id, array $custom_field_values, ?string $field_key_type = 'name'): bool {
+    $is_total_success = true;
     $messages = [];
 
     if ($field_key_type == 'name') {
       // First we need to look up custom field keys/IDs, so we can map the
       // friendly string names to IDs (which the Brandfolder API requires for
       // the subsequent POST request).
-      $custom_field_ids_and_names = $this->listCustomFields(NULL, FALSE, TRUE);
+      $custom_field_ids_and_names = $this->listCustomFields(NULL, false, true);
       if (!$custom_field_ids_and_names) {
         $this->message = 'Could not retrieve custom fields from Brandfolder.';
 
-        return FALSE;
+        return false;
       }
       $relevant_field_ids_and_values = [];
       foreach ($custom_field_ids_and_names as $id => $name) {
@@ -716,7 +727,7 @@ class Brandfolder {
           $relevant_field_ids_and_values[$id] = $custom_field_values[$name];
         }
         else {
-          $is_total_success = FALSE;
+          $is_total_success = false;
           $messages[] = "Custom field '$name' appears to no longer exist in Brandfolder, so we cannot add a value for it.";
         }
       }
@@ -749,7 +760,7 @@ class Brandfolder {
       }
       else {
         $success_phrase = 'Failed to add';
-        $is_total_success = FALSE;
+        $is_total_success = false;
       }
       $messages[] = "$success_phrase custom field value for field ID $field_id to asset $asset_id.";
     }
@@ -766,13 +777,13 @@ class Brandfolder {
    * @param string $label
    *  The ID/key of the label to which the given assets should be added.
    *
-   * @return object|FALSE
+   * @return object|false
    *
    * @todo: Allow users to provide the human-readable label name if desired.
    *
    * @todo: Add to online documentation? This is an undocumented but very useful endpoint. Tested and verified functional as of 2023-05-17.
    */
-  public function addAssetsToLabel($asset_ids, $label) {
+  public function addAssetsToLabel(array $asset_ids, string $label): object|false {
     $body = [
       "data" => [
         "asset_keys" => $asset_ids,
@@ -784,45 +795,43 @@ class Brandfolder {
     return $result;
   }
 
-
   /**
    * Delete an asset.
    *
-   * @param $asset_id
+   * @param string $asset_id
    *
-   * @return bool TRUE if successfully deleted, FALSE otherwise.
+   * @return bool true if successfully deleted, false otherwise.
    *
    * @see https://developers.brandfolder.com/#delete-an-asset
    */
-  public function deleteAsset($asset_id) {
+  public function deleteAsset(string $asset_id): bool {
     $result = $this->request('DELETE', "/assets/$asset_id");
-    $is_success = $result !== FALSE;
+    $is_success = $result !== false;
 
     return $is_success;
   }
 
-
   /**
    * List multiple assets.
    *
-   * @param array $query_params
+   * @param array|null $query_params
    * @param string|null $collection
    *  An ID of a collection within which to search for assets, or "all" to look
    *  throughout the entire Brandfolder. If this param is null, the operation
    *  will use the previously defined default collection, if applicable.
-   * @param bool $should_get_all if TRUE, retrieve all applicable assets - i.e.
-   *  aggregate results from all pages of results. If FALSE, the page size and
+   * @param bool $should_get_all if true, retrieve all applicable assets - i.e.
+   *  aggregate results from all pages of results. If false, the page size and
    *  number will be dictated by the params provided in $query_params ("page,"
    *  and "per"). If those are not provided, the default behavior will be to
    *  return the first page of results.
    *
-   * @return object|FALSE
+   * @return object|false
    *
    * @see https://developers.brandfolder.com/?http#list-assets
    *
    * @todo: assets within Brandfolder vs collection vs org
    */
-  public function listAssets($query_params = [], $collection = NULL, $should_get_all = FALSE) {
+  public function listAssets(?array $query_params = [], string $collection = NULL, bool $should_get_all = false): object|bool {
     if (is_null($collection)) {
       $collection = $this->default_collection_id;
     }
@@ -836,7 +845,7 @@ class Brandfolder {
       $this->status = 0;
       $this->message = 'Could not determine endpoint for listing assets. Please set a default Brandfolder or provide a collection ID.';
 
-      return FALSE;
+      return false;
     }
 
     // Use getAll() if specifically requested. Do not do this by default, for
@@ -861,9 +870,9 @@ class Brandfolder {
   /**
    * Improve the usefulness of data returned from GET requests.
    *
-   * @param $result
+   * @param object $result
    */
-  protected function processResultData(&$result) {
+  protected function processResultData(object &$result): void {
     // All of this processing is only relevant if there is "included" data.
     if (isset($result->included) && is_array($result->included)) {
       // Make the "included" data array itself more useful.
@@ -882,9 +891,9 @@ class Brandfolder {
    * Structure included data as an associative array of items grouped by
    * type and indexed therein by ID.
    *
-   * @param $result
+   * @param object $result
    */
-  protected function restructureIncludedData(&$result) {
+  protected function restructureIncludedData(object &$result): void {
     $included = [];
     if (isset($result->included) && is_array($result->included)) {
       foreach ($result->included as $item) {
@@ -909,7 +918,7 @@ class Brandfolder {
    *  expanded to include more asset-specific functionality, but all such
    *  functionality is currently contained within processRelationships().
    */
-  protected function decorateAsset(&$asset, $included_data) {
+  protected function decorateAsset(object &$asset, array $included_data): void {
     $this->processRelationships($asset, $included_data);
   }
 
@@ -926,7 +935,7 @@ class Brandfolder {
    * Note: This is retained mainly for backwards compatibility. It could be
    *  expanded to include more attachment-specific functionality.
    */
-  protected function decorateAttachment(&$attachment, $included_data) {
+  protected function decorateAttachment(object &$attachment, array $included_data): void {
     $this->processRelationships($attachment, $included_data);
   }
 
@@ -943,8 +952,8 @@ class Brandfolder {
    * @param array $included_data The "included" array returned from an API
    *  request for which you provided the "include" query param.
    */
-  protected function processRelationships(&$entity, $included_data) {
-    if (isset($entity->relationships) && is_array($entity->relationships)) {
+  protected function processRelationships(object &$entity, array $included_data): void {
+    if (!empty($entity->relationships)) {
       foreach ($entity->relationships as $type_label => $data) {
         // Data here will either be an array of objects or a single object.
         // In the latter case, wrap in an array for consistency.
@@ -987,20 +996,20 @@ class Brandfolder {
   /**
    * Retrieves tags used in a Brandfolder.
    *
-   * @param array $query_params
-   * @param string $collection ID of a collection. I provided, only fetch tags
+   * @param array|null $query_params
+   * @param string|null $collection ID of a collection. I provided, only fetch tags
    *  associated with that collection.
-   * @param bool $should_return_data_only If TRUE, return only the "data" array
-   *  nested within the API response. If FALSE, return the entire response
-   *  object. Defaults to TRUE (data array only) for backwards compatibility.
+   * @param bool $should_return_data_only If true, return only the "data" array
+   *  nested within the API response. If false, return the entire response
+   *  object. Defaults to true (data array only) for backwards compatibility.
    *
-   * @return array|object|FALSE On success, returns an array of tag items
-   *  (if $should_return_data_only is TRUE), or an object containing such an
-   *  array plus a "meta" array with pagination data. FALSE on failure.
+   * @return array|object|false On success, returns an array of tag items
+   *  (if $should_return_data_only is true), or an object containing such an
+   *  array plus a "meta" array with pagination data. false on failure.
    *
    * @see https://developers.brandfolder.com/docs/#list-tags
    */
-  public function getTags($query_params = [], $collection = NULL, $should_return_data_only = TRUE) {
+  public function getTags(?array $query_params = [], string $collection = NULL, bool $should_return_data_only = true): array|object|false {
     if (!is_null($collection)) {
       $endpoint = "/collections/$collection/tags";
     }
@@ -1011,7 +1020,7 @@ class Brandfolder {
       $this->status = 0;
       $this->message = 'Could not determine endpoint for listing assets. Please set a default Brandfolder or provide a collection ID.';
 
-      return FALSE;
+      return false;
     }
 
     if (isset($query_params['page']) || isset($query_params['per'])) {
@@ -1037,18 +1046,18 @@ class Brandfolder {
    * Lists Invitations to an Organization, Brandfolder, Collection, Portal,
    *  or Brandguide.
    *
-   * @param array $query_params
+   * @param array|null $query_params
    * @param string|null $organization
    * @param string|null $brandfolder
    * @param string|null $collection
    * @param string|null $portal
    * @param string|null $brandguide
    *
-   * @return object|FALSE
+   * @return object|false
    *
    * @see https://developers.brandfolder.com/?http#list-invitations
    */
-  public function listInvitations($query_params = [], $organization = NULL, $brandfolder = NULL, $collection = NULL, $portal = NULL, $brandguide = NULL) {
+  public function listInvitations(?array $query_params = [], string $organization = NULL, string $brandfolder = NULL, string $collection = NULL, string $portal = NULL, string $brandguide = NULL): object|bool {
     if (!is_null($organization)) {
       // @todo: Store default organization.
       $endpoint = "/organizations/$organization/invitations";
@@ -1093,7 +1102,7 @@ class Brandfolder {
       $this->status = 0;
       $this->message = 'Could not determine endpoint for listing invitations. Please specify an organization/Brandfolder/collection/portal/brandguide.';
 
-      return FALSE;
+      return false;
     }
   }
 
@@ -1101,15 +1110,15 @@ class Brandfolder {
    * Helper method for GET requests. Compiles data from all pages of
    * results for a given request into a single object.
    *
-   * @param $path
-   * @param $query_params
+   * @param string $path
+   * @param array $query_params
    *
-   * @return object|FALSE Object containing aggregated response data for
+   * @return object|false Object containing aggregated response data for
    *  successful requests. This will always include a "data" array, and, where
    *  applicable, an "included" array with supplementary data.
-   *  FALSE on failure.
+   *  false on failure.
    */
-  public function getAll($path, $query_params = []) {
+  public function getAll(string $path, array $query_params = []): object|false {
     $data = [];
     $included = [];
     if (!isset($query_params['per'])) {
@@ -1137,12 +1146,12 @@ class Brandfolder {
       }
       else {
 
-        return FALSE;
+        return false;
       }
     }
     while ($request_count <= $request_limit && $next_page);
 
-    $result = new \stdClass();
+    $result = new stdClass();
     $result->data = $data;
     if (!empty($included)) {
       $result->included = $included;
@@ -1165,13 +1174,13 @@ class Brandfolder {
    *  Associative array of data to be sent as the body of the requests. This
    *  will be converted to JSON.
    *
-   * @return object|FALSE
+   * @return object|false
    *  An object representing JSON API response on success. This will
    *  typically consist of a "data" property containing the requested data,
    *  a "meta" property containing metadata about the response/context, and
    *  sometimes an "included" property containing additional data when
    *  available and when requested (via the "include" query param).
-   *  FALSE on failure.
+   *  false on failure.
    *
    * @code
    *    $assets = [];
@@ -1184,10 +1193,10 @@ class Brandfolder {
    *    }
    * @endcode
    */
-  public function request($method, $path, $query_params = [], $body = NULL) {
+  public function request(string $method, string $path, ?array $query_params = [], array $body = NULL) : object|false {
 
     // Reset status and message.
-    $this->status = NULL;
+    $this->status = 0;
     $this->message = '';
 
     $options = [
@@ -1208,7 +1217,7 @@ class Brandfolder {
     }
 
     $url = $this->endpoint . $path;
-    $result = FALSE;
+    $result = false;
 
     if ($this->verbose_logging_mode) {
       $options_string = $this->jsonEncode($options);
@@ -1229,12 +1238,12 @@ class Brandfolder {
       if ($status_code >= 200 && $status_code < 300) {
         $body = $response->getBody()->getContents();
         if (empty($body)) {
-          $result = [];
+          $result = new stdClass();
         }
         else {
           $result = $this->jsonDecode($body);
 
-          if ($result === FALSE && $this->verbose_logging_mode) {
+          if ($result === false && $this->verbose_logging_mode) {
             $log_entry = "Brandfolder request. Could not JSON-decode response body. Method: $method. Requested URL: $url. Options: $options_string. Response code: $status_code.";
             $this->log($log_entry);
           }
@@ -1258,21 +1267,23 @@ class Brandfolder {
   /**
    * Activate verbose logging mode.
    */
-  public function enableVerboseLogging() {
-    $this->verbose_logging_mode = TRUE;
+  public function enableVerboseLogging(): void {
+    $this->verbose_logging_mode = true;
   }
 
   /**
    * Deactivate verbose logging mode.
    */
-  public function disableVerboseLogging() {
-    $this->verbose_logging_mode = FALSE;
+  public function disableVerboseLogging(): void {
+    $this->verbose_logging_mode = false;
   }
 
   /**
    * Determine whether verbose logging is enabled.
+   *
+   * @return bool
    */
-  public function verboseLoggingIsEnabled() {
+  public function verboseLoggingIsEnabled(): bool {
     return $this->verbose_logging_mode;
   }
 
@@ -1283,15 +1294,17 @@ class Brandfolder {
    *
    * @todo: More structured log entries, with levels, implementing a common interface, etc.
    */
-  protected function log($entry) {
+  protected function log(string $entry): void {
     $entry = str_replace($this->api_key, '[[API-KEY-REDACTED]]', $entry);
     $this->log_data[] = $entry;
   }
 
   /**
    * Get log data.
+   *
+   * @return array
    */
-  public function getLogData() {
+  public function getLogData(): array {
     $this->log_data = array_filter($this->log_data);
 
     return $this->log_data;
@@ -1300,7 +1313,7 @@ class Brandfolder {
   /**
    * Clear log data.
    */
-  public function clearLogData() {
+  public function clearLogData(): void {
     $this->log_data = [];
   }
 
