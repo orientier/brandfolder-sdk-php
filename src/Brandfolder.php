@@ -30,14 +30,14 @@ class Brandfolder {
    *
    * @var int $status
    */
-  public int $status;
+  public int $status = 0;
 
   /**
    * A useful message pertaining to the most recent operation, if applicable.
    *
    * @var string $message
    */
-  public string $message;
+  public string $message = '';
 
   /**
    * HTTP client.
@@ -59,7 +59,7 @@ class Brandfolder {
    *
    * @var string $api_key
    */
-  private string $api_key;
+  protected string $api_key;
 
   /**
    * The Brandfolder to use for Brandfolder-specific requests, when no other
@@ -79,7 +79,7 @@ class Brandfolder {
    *
    * @todo setCollection() method.
    */
-  public ?string $default_collection_id;
+  public ?string $default_collection_id = null;
 
   /**
    * The default number of items to fetch per GET request. Corresponds to the
@@ -101,7 +101,7 @@ class Brandfolder {
    *
    * @var array $log_data
    */
-  protected array $log_data;
+  protected array $log_data = [];
 
   /**
    * Brandfolder constructor.
@@ -112,13 +112,7 @@ class Brandfolder {
    */
   public function __construct(string $api_key, string $brandfolder_id = NULL, ClientInterface $client = NULL) {
     $this->api_key = $api_key;
-    $this->clearLogData();
-    $this->status = 0;
-    $this->message = '';
-
-    if (!is_null($brandfolder_id)) {
-      $this->default_brandfolder_id = $brandfolder_id;
-    }
+    $this->default_brandfolder_id = $brandfolder_id;
 
     if (is_null($client)) {
       $client = new Client();
@@ -245,7 +239,7 @@ class Brandfolder {
    * @param array $query_params
    *
    * @return object|false
-   * 
+   *
    * @see https://developers.brandfolder.com/?http#list-collections
    */
   public function getCollectionsForUser(array $query_params = []): object|false {
