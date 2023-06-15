@@ -871,12 +871,19 @@ class Brandfolder {
     if (isset($result->included) && is_array($result->included)) {
       // Make the "included" data array itself more useful.
       $this->restructureIncludedData($result);
-      if (isset($result->data) && is_array($result->data)) {
-        // Update each entity to contain more useful data (about related
-        // entities/attributes, etc.).
-        array_walk($result->data, function ($entity) use ($result) {
-          $this->processRelationships($entity, $result->included);
-        });
+      if (!empty($result->data)) {
+        // Data might be a single object (e.g. for a fetchAsset call) or an
+        // array of such objects (e.g. for a listAssets call).
+        if (is_array($result->data)) {
+          // Update each entity to contain more useful data (about related
+          // entities/attributes, etc.).
+          array_walk($result->data, function ($entity) use ($result) {
+            $this->processRelationships($entity, $result->included);
+          });
+        }
+        elseif (is_object($result->data)) {
+          $this->processRelationships($result->data, $result->included);
+        }
       }
     }
   }
@@ -948,6 +955,10 @@ class Brandfolder {
    */
   protected function processRelationships(object &$entity, array $included_data): void {
     if (!empty($entity->relationships)) {
+      if (!empty($included_data['custom_field_values'])) {
+        $custom_field_ids_and_names = $this->listCustomFields(NULL, FALSE, TRUE);
+        $custom_field_names_and_ids = array_flip($custom_field_ids_and_names);
+      }
       foreach ($entity->relationships as $type_label => $data) {
         // Data here will either be an array of objects or a single object.
         // In the latter case, wrap in an array for consistency.
@@ -956,13 +967,43 @@ class Brandfolder {
           $type = $item->type;
           if (isset($included_data[$type][$item->id])) {
             $attributes = $included_data[$type][$item->id];
-            // For custom field values, set up a convenient array keyed
-            // by field keys and containing field values. If users
-            // need to know the unique ID of a particular custom field
-            // instance, they can still look in $entity->relationships.
+            // For custom field values, set up convenient arrays containing
+            // field values.
             if ($type == 'custom_field_values') {
+              // First, populate an array keyed by the Brandfolder key of each
+              // custom field (this is the textual name of the field, which is
+              // displayed in the Brandfolder web app).
               $key = $attributes->key;
-              $entity->{$type}[$key] = $attributes->value;
+              if (!empty($entity->{'custom_field_values'}[$key])) {
+                // If there are multiple values for a given key, make
+                // sure we have an array to hold them.
+                if (!is_array($entity->{'custom_field_values'}[$key])) {
+                  $entity->{'custom_field_values'}[$key] = [$entity->{'custom_field_values'}[$key]];
+                }
+                // Add the new value to the array.
+                $entity->{'custom_field_values'}[$key][] = $attributes->value;
+              }
+              else {
+                $entity->{'custom_field_values'}[$key] = $attributes->value;
+              }
+              // Also populate an array keyed by the ID of each custom field
+              // (i.e. the global ID of the field - not to be confused with
+              // the ID of the asset/attachment:field relationship).
+              if (isset($custom_field_names_and_ids[$key])) {
+                $custom_field_id = $custom_field_names_and_ids[$key];
+                if (!empty($entity->{'custom_field_values_by_id'}[$custom_field_id])) {
+                  // If there are multiple values for a given ID, make
+                  // sure we have an array to hold them.
+                  if (!is_array($entity->{'custom_field_values_by_id'}[$custom_field_id])) {
+                    $entity->{'custom_field_values_by_id'}[$custom_field_id] = [$entity->{'custom_field_values_by_id'}[$custom_field_id]];
+                  }
+                  // Add the new value to the array.
+                  $entity->{'custom_field_values_by_id'}[$custom_field_id][] = $attributes->value;
+                }
+                else {
+                  $entity->{'custom_field_values_by_id'}[$custom_field_id] = $attributes->value;
+                }
+              }
             }
             else {
               $attributes->id = $item->id;
