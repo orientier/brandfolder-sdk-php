@@ -21,7 +21,7 @@ This project is under active development.
 ## Requirements
 
 - Brandfolder account
-- PHP 7.0 or greater
+- PHP 7.x
 - [Composer](https://getcomposer.org)
 - [Guzzle](https://github.com/guzzle/guzzle)
 
