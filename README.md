@@ -21,7 +21,7 @@ This project was created and is overseen by the team at [Orientier](https://www.
 ## Requirements
 
 - Brandfolder account
-- PHP 7.0 or greater
+- PHP 7.3-8.1
 - [Composer](https://getcomposer.org)
 - [Guzzle](https://github.com/guzzle/guzzle)
 
