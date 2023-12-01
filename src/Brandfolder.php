@@ -13,16 +13,7 @@ use Psr\Http\Message\ResponseInterface;
  * @package Brandfolder
  */
 class Brandfolder {
-
-  const VERSION = '0.1.0';
-
-  /**
-   * API version.
-   *
-   * @var string $version
-   */
-  public $version = self::VERSION;
-
+  
   /**
    * The status code of the most recent operation, if applicable.
    *
