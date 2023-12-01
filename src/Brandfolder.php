@@ -16,15 +16,6 @@ use stdClass;
  */
 class Brandfolder {
 
-  const VERSION = '1.0.0';
-
-  /**
-   * API version.
-   *
-   * @var string $version
-   */
-  public string $version = self::VERSION;
-
   /**
    * The status code of the most recent operation, if applicable.
    *
@@ -133,9 +124,6 @@ class Brandfolder {
       if (method_exists('\GuzzleHttp\Utils', 'jsonEncode')) {
         $result = GuzzleUtils::jsonEncode($data);
       }
-      elseif (method_exists('\GuzzleHttp', 'json_encode')) {
-        $result = \GuzzleHttp\json_encode($data);
-      }
       elseif (function_exists('json_encode')) {
         $result = json_encode($data);
       }
@@ -164,9 +152,6 @@ class Brandfolder {
     try {
       if (method_exists('\GuzzleHttp\Utils', 'jsonDecode')) {
         $result = GuzzleUtils::jsonDecode($data);
-      }
-      elseif (method_exists('\GuzzleHttp', 'json_decode')) {
-        $result = \GuzzleHttp\json_decode($data);
       }
       elseif (function_exists('json_decode')) {
         $result = json_decode($data);
