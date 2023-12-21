@@ -1,8 +1,6 @@
 # The Official PHP Brandfolder SDK
 
 [![GitHub](https://img.shields.io/github/license/orientier/brandfolder-sdk-php)](https://github.com/orientier/brandfolder-sdk-php/blob/master/LICENSE)
-[![PHP Composer Testing](https://github.com/orientier/brandfolder-sdk-php/workflows/PHP%20Composer%20Testing/badge.svg)](https://github.com/orientier/brandfolder-sdk-php/actions?query=workflow%3A%22PHP+Composer+Testing%22)
-[![Libraries.io dependency status for GitHub repo](https://img.shields.io/librariesio/github/orientier/brandfolder-sdk-php)](https://packagist.org/packages/brandfolder/brandfolder-sdk-php)
 
 [![Brandfolder](https://cdn.brandfolder.io/YUHW9ZNT/as/znoqr595/Primary_Brandfolder_Logo.png?width=400)](https://brandfolder.com)
 
