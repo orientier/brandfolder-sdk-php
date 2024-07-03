@@ -177,9 +177,47 @@ class Brandfolder {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/?http#list-organizations
+   *
+   * @code
+   * $bf_client = new Brandfolder($api_key);
+   * $organizations = $bf_client->listOrganizations();
+   * @endcode
+   */
+  public function listOrganizations(array $query_params = []): object|false {
+    $result = $this->getAll('/organizations', $query_params);
+
+    $this->processResultData($result);
+
+    return $result;
+  }
+
+  /**
+   * Alternate name for backward compatibility.
+   *
+   * @see Brandfolder::listOrganizations()
    */
   public function getOrganizations(array $query_params = []): object|false {
-    $result = $this->getAll('/organizations', $query_params);
+
+    return $this->listOrganizations($query_params);
+  }
+
+  /**
+   * Fetch a single organization by ID.
+   *
+   * @param string $organization_id
+   * @param array $query_params
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#fetch-an-organization
+   *
+   * @code
+   * $bf_client = new Brandfolder($api_key);
+   * $organization = $bf_client->fetchOrganization($organization_id);
+   * @endcode
+   */
+  public function fetchOrganization(string $organization_id, array $query_params = []): object|false {
+    $result = $this->request('GET', "/organizations/$organization_id", $query_params);
 
     $this->processResultData($result);
 
@@ -847,6 +885,229 @@ class Brandfolder {
   }
 
   /**
+   * List assets in a specific organization. Warning: this method will have
+   * longer response times than other asset fetch methods. If possible, use
+   * fetchAssets() and specify a particular Brandfolder or Collection.
+   *
+   * @todo: Document alternative SDK methods.
+   * @deprecated
+   * Clients needing to fetch all assets within an organization should instead
+   * do the following:
+   *  - List all Brandfolders: GET /brandfolders?include=organization
+   *  - Iteratively list assets for each Brandfolder within the target
+   *    organization: GET /brandfolders/{brandfolder_id}/assets
+   *
+   * @param string $organization_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-assets-in-an-organization
+   */
+  public function listAssetsInOrganization(string $organization_id, ?array $query_params = []): object|bool {
+    $endpoint = "/organizations/$organization_id/assets";
+    $result = $this->request('GET', $endpoint, $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * List attachments in a given context/scope (Organization, Brandfolder,
+   * Collection, or Asset).
+   *
+   * @param string $context The type of entity for which to list attachments.
+   *  Valid values are: 'organization', 'brandfolder', 'collection', 'asset'.
+   *  Note: "organization" is being deprecated. If you need to fetch attachments
+   *  accross an entire org, you can:
+   *    - List all Brandfolders (include=organization), then:
+   *    - List all sections within each Brandfolder belonging to the relevant org, then:
+   *    - List all attachments within each of those section.
+   * @param string $context_id
+   * @param array|null $query_params
+   *
+   * @code
+   * $bf_client = new Brandfolder($api_key);
+   * $query_params = [
+   *   'include' => 'asset',
+   *   'fields' => 'cdn_url',
+   * ];
+   * $attachments = $bf_client->listAttachments('brandfolder', $brandfolder_id, $query_params);
+   * // Sample output:
+   * // {
+   * //   "data": [
+   * //     0 => {
+   * //       "id": "attachment-id-abc-123",
+   * //       "type": "attachments",
+   * //       "attributes": {
+   * //         "filename": "example.jpg",
+   * //         "url": "https://assets2.brandfolder.io/bf-boulder-prod/attachment-id-abc-123/v/12345/original/example.jpg",
+   * //         "cdn_url": "https://cdn.bfldr.com/DEFG123/at/attachment-id-abc-123/example.jpg?auto=webp&format=png",
+   * //         "thumbnail_url": "https://thumbs.bfldr.com/at/attachment-id-abc-123?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
+   * //         "size": 123456,
+   * //         ...
+   * //       },
+   * //       "relationships": {
+   * //         "asset": {
+   * //           "data": {
+   * //             "id": "asset-id-abc-123",
+   * //             "type": "generic_files"
+   * //           }
+   * //         }
+   * //       },
+   * //       "generic_files": [
+   * //         "asset-id-abc-123": {
+   * //           "id": "asset-id-abc-123",
+   * //           "name": "Example JPG Asset",
+   * //           "approved": true,
+   * //           "thumbnail_url": "https://thumbs.bfldr.com/as/asset-id-abc-123?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
+   * //           ...
+   * //         }
+   * //       ]
+   * //     },
+   * //     ...
+   * //   ],
+   * //   "included": [
+   * //     "generic_files": [
+   * //       "asset-id-abc-123": {
+   * //         "id": "asset-id-abc-123",
+   * //         "name": "Example JPG Asset",
+   * //         "approved": true,
+   * //         "thumbnail_url": "https://thumbs.bfldr.com/as/asset-id-abc-123?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
+   * //         ...
+   * //       },
+   * //       "asset-id-def-456": {
+   * //         "id": "asset-id-def-456",
+   * //         "name": "Another Asset Linked to A Different Attachment",
+   * //         "approved": true,
+   * //         "thumbnail_url": "https://thumbs.bfldr.com/as/asset-id-def-456?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
+   * //         ...
+   * //       },
+   * //       ...
+   * //     ]
+   * //   ]
+   * // }
+   * @endcode
+   *
+   * @see https://developers.brandfolder.com/docs/#list-attachments
+   *
+   * @todo: SDK methods listed in deprecation note.
+   */
+  public function listAttachments(string $context, string $context_id, ?array $query_params = []): object|bool {
+    $context_endpoint_string = NULL;
+    switch ($context) {
+      case 'organization':
+        $context_endpoint_string = 'organizations';
+        break;
+      case 'brandfolder':
+        $context_endpoint_string = 'brandfolders';
+        break;
+      case 'collection':
+        $context_endpoint_string = 'collections';
+        break;
+      case 'section':
+        $context_endpoint_string = 'sections';
+        break;
+      case 'asset':
+        $context_endpoint_string = 'assets';
+        break;
+      default:
+        $this->status = 0;
+        $this->message = 'Invalid context for listing attachments.';
+
+        return false;
+    }
+    $endpoint = "/$context_endpoint_string/$context_id/attachments";
+    $result = $this->request('GET', $endpoint, $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * List attachments for a given organization.
+   *
+   * @param string $organization_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @deprecated If you need to fetch attachments accross an entire org, you
+   *  can:
+   *   - List all Brandfolders (include=organization), then:
+   *   - List all sections within each Brandfolder belonging to the relevant
+   *      org, then:
+   *   - List all attachments within each of those sections.
+   *
+   * @see listAttachments()
+   */
+  public function listAttachmentsForOrganization(string $organization_id, ?array $query_params = []): object|bool {
+    return $this->listAttachments('organization', $organization_id, $query_params);
+  }
+
+  /**
+   * List attachments for a given Brandfolder.
+   *
+   * @param string $brandfolder_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see listAttachments()
+   */
+  public function listAttachmentsForBrandfolder(string $brandfolder_id, ?array $query_params = []): object|bool {
+    return $this->listAttachments('brandfolder', $brandfolder_id, $query_params);
+  }
+
+  /**
+   * List attachments for a given collection.
+   *
+   * @param string $collection_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see listAttachments()
+   */
+  public function listAttachmentsForCollection(string $collection_id, ?array $query_params = []): object|bool {
+    return $this->listAttachments('collection', $collection_id, $query_params);
+  }
+
+  /**
+   * List attachments for a given section.
+   *
+   * @param string $section_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see listAttachments()
+   */
+  public function listAttachmentsForSection(string $section_id, ?array $query_params = []): object|bool {
+    return $this->listAttachments('section', $section_id, $query_params);
+  }
+
+  /**
+   * List attachments for a given asset.
+   *
+   * @param string $asset_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see listAttachments()
+   */
+  public function listAttachmentsForAsset(string $asset_id, ?array $query_params = []): object|bool {
+    return $this->listAttachments('asset', $asset_id, $query_params);
+  }
+
+  /**
    * Improve the usefulness of data returned from GET requests.
    *
    * @param object $result
@@ -944,6 +1205,7 @@ class Brandfolder {
         $custom_field_ids_and_names = $this->listCustomFields(NULL, FALSE, TRUE);
         $custom_field_names_and_ids = array_flip($custom_field_ids_and_names);
       }
+      // @todo: Consider special treatment for assets (e.g. when listing attachments with '?include=asset'), which tend to have the type "generic_files" whereas the $type_label here would be "asset." The latter would be friendlier, imo. Determine whether there are other asset types, and, if so, whether we want to key the "included" array by those types or just group everything into an array with the "asset" key.
       foreach ($entity->relationships as $type_label => $data) {
         // Data here will either be an array of objects or a single object.
         // In the latter case, wrap in an array for consistency.
