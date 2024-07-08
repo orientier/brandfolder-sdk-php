@@ -392,6 +392,53 @@ class Brandfolder {
   }
 
   /**
+   * Create a new Collection in a Brandfolder.
+   *
+   * @param string $name
+   * @param string|null $brandfolder_id
+   *  The ID of the Brandfolder in which to create the Collection. If not
+   *  provided, we will attempt to use the default Brandfolder, if defined.
+   * @param string|null $tagline
+   *  A descriptive subtitle/short description of the Collection.
+   * @param string|null $slug
+   *  String of letters, numbers, hyphens, and underscores.
+   *  Note: we recommend *not* to invent your own slug. If it is not valid, the
+   *  request will fail with a 422 error. Default is to automatically
+   *  assign a slug based on $name (a name of "My Collection" would make a
+   *  slug of "my-collection").
+   *  If the provided slug is valid but not unique, it will have a number
+   *  appended to make it unique.
+   */
+  public function createCollectionInBrandfolder(string $name, ?string $brandfolder_id = NULL, string $tagline = NULL, string $slug = NULL): object|false {
+    if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
+      $brandfolder_id = $this->default_brandfolder_id;
+    }
+
+    $attributes = [
+      'name' => $name,
+    ];
+    if (!is_null($tagline)) {
+      $attributes['tagline'] = $tagline;
+    }
+    if (!is_null($slug)) {
+      $attributes['slug'] = $slug;
+    }
+    $body = [
+      "data" => [
+        "attributes" => $attributes,
+      ],
+    ];
+
+    return $this->request('POST', "/brandfolders/$brandfolder_id/collections", [], $body);
+  }
+
+  /**
    * Gets Sections defined in a given Brandfolder.
    *
    * @param string|null $brandfolder_id
