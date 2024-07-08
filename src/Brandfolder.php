@@ -235,9 +235,9 @@ class Brandfolder {
    *
    * @return array|object|false
    *
-   * @see https://developers.brandfolder.com/?http#list-brandfolders
+   * @see https://developers.brandfolder.com/docs/#list-brandfolders
    */
-  public function getBrandfolders(array $query_params = [], bool $simple_format = true): object|bool|array {
+  public function listBrandfolders(array $query_params = [], bool $simple_format = true): object|bool|array {
     $bf_data = $this->getAll('/brandfolders', $query_params);
     if ($bf_data) {
       if ($simple_format) {
@@ -254,6 +254,83 @@ class Brandfolder {
     }
 
     return false;
+  }
+
+  /**
+   * Alternative name for backward compatibility.
+   *
+   * @see listBrandfolders()
+   */
+  public function getBrandfolders(array $query_params = [], bool $simple_format = true): object|bool|array {
+
+      return $this->listBrandfolders($query_params, $simple_format);
+  }
+
+  /**
+   * Fetch an individual Brandfolder by ID.
+   *
+   * @param string $brandfolder_id
+   * @param array|null $query_params
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#fetch-a-brandfolder
+   */
+  public function fetchBrandfolder(string $brandfolder_id, ?array $query_params = []): object|false {
+    $result = $this->request('GET', "/brandfolders/$brandfolder_id", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Create a new Brandfolder in an organization.
+   *
+   * @param string $organization_id
+   * @param string $name
+   * @param string|null $tagline
+   *  A descriptive subtitle/short description of the Brandfolder.
+   * @param string|null $privacy
+   *  The privacy setting for the new Brandfolder. Valid options are "private"
+   *  (the default) and "public."
+   * @param string|null $slug
+   *  String of letters, numbers, hyphens, and underscores.
+   *  Note: we recommend *not* to invent your own slug. If it is not valid, the
+   *  request will fail with a 422 error. Default is to automatically
+   *  assign a slug based on $name (a name of "My Brandfolder" would make a
+   *  slug of "my-brandfolder").
+   *  If the provided slug is valid but not unique, it will have a number
+   *  appended to make it unique.
+   */
+  public function createBrandfolderInOrganization(string $organization_id, string $name, string $tagline = NULL, string $privacy = 'private', string $slug = NULL): object|false {
+    $attributes = [
+      'name' => $name,
+    ];
+    if (!is_null($tagline)) {
+      $attributes['tagline'] = $tagline;
+    }
+    if (!is_null($slug)) {
+      $attributes['slug'] = $slug;
+    }
+    if (!is_null($privacy)) {
+      $valid_privacy_values = ['private', 'public'];
+      if (!in_array($privacy, $valid_privacy_values)) {
+        $this->message = 'Invalid privacy value. Valid options are "private" and "public".';
+
+        return false;
+      }
+      $attributes['privacy'] = $privacy;
+    }
+    $body = [
+      "data" => [
+        "attributes" => $attributes,
+      ],
+    ];
+
+    return $this->request('POST', "/organizations/$organization_id/brandfolders", [], $body);
   }
 
   /**
