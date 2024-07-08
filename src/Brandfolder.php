@@ -408,6 +408,10 @@ class Brandfolder {
    *  slug of "my-collection").
    *  If the provided slug is valid but not unique, it will have a number
    *  appended to make it unique.
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#create-a-collection-in-a-brandfolder
    */
   public function createCollectionInBrandfolder(string $name, ?string $brandfolder_id = NULL, string $tagline = NULL, string $slug = NULL): object|false {
     if (is_null($brandfolder_id)) {
@@ -436,6 +440,80 @@ class Brandfolder {
     ];
 
     return $this->request('POST', "/brandfolders/$brandfolder_id/collections", [], $body);
+  }
+
+  /**
+   * Fetch an individual Collection by ID.
+   *
+   * @param string $collection_id
+   * @param array|null $query_params
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#fetch-a-collection
+   */
+  public function fetchCollection(string $collection_id, ?array $query_params = []): object|false {
+    $result = $this->request('GET', "/collections/$collection_id", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Update an existing Collection.
+   *
+   * @param string $collection_id
+   * @param array $attributes
+   *  An associative array of attributes to update. Valid keys are "name,"
+   *  "tagline," and "slug."
+   *  Note: we recommend *not* to invent your own slug. If it is not valid
+   *  (must be a string of letters, numbers, hyphens, and underscores), the
+   *  request will fail with a 422 error. Default is to automatically
+   *  assign a slug based on the name (a name of "My Collection" would make a
+   *  slug of "my-collection").
+   *  If the provided slug is valid but not unique, it will have a number
+   *  appended to make it unique.
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#update-a-collection
+   */
+  public function updateCollection(string $collection_id, array $attributes): object|false {
+    // Remove any invalid attributes, and ensure that we have at least one
+    // valid attribute to update.
+    $valid_attributes = ['name', 'tagline', 'slug'];
+    $attributes = array_intersect_key($attributes, array_flip($valid_attributes));
+    if (empty($attributes)) {
+      $this->status = 0;
+      $this->message = 'No valid attributes provided for updating the Collection.';
+
+      return false;
+    }
+
+    $body = [
+      "data" => [
+        "attributes" => $attributes,
+      ],
+    ];
+
+    return $this->request('PUT', "/collections/$collection_id", [], $body);
+  }
+
+  /**
+   * Delete a Collection.
+   *
+   * @param string $collection_id
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#delete-a-collection
+   */
+  public function deleteCollection(string $collection_id): object|false {
+
+    return $this->request('DELETE', "/collections/$collection_id");
   }
 
   /**
