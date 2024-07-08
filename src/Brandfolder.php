@@ -318,6 +318,7 @@ class Brandfolder {
     if (!is_null($privacy)) {
       $valid_privacy_values = ['private', 'public'];
       if (!in_array($privacy, $valid_privacy_values)) {
+        $this->status = 0;
         $this->message = 'Invalid privacy value. Valid options are "private" and "public".';
 
         return false;
@@ -362,7 +363,12 @@ class Brandfolder {
    */
   public function getCollectionsInBrandfolder(string $brandfolder_id = NULL, array $query_params = [], bool $simple_format = true): array|object|false {
     if (is_null($brandfolder_id)) {
-      // @todo $this->getBrandfolder().
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
       $brandfolder_id = $this->default_brandfolder_id;
     }
 
@@ -400,6 +406,12 @@ class Brandfolder {
    */
   public function listSectionsInBrandfolder(string $brandfolder_id = NULL, array $query_params = [], bool $simple_format = false): array|object|false {
     if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
       $brandfolder_id = $this->default_brandfolder_id;
     }
 
@@ -423,6 +435,66 @@ class Brandfolder {
   }
 
   /**
+   * Create a new section in a Brandfolder.
+   *
+   * @param string $name
+   *  The name of the section.
+   * @param string|null $default_asset_type
+   *  Options are "GenericFile," "Color," "Font," "ExternalMedium," "Person,"
+   *  "Press," and "Text."
+   *  Defaults to "GenericFile."
+   *  Note: we strongly recommend using "GenericFile" when Assets will be added
+   *  to the Section via the API.
+   * @param string|null $brandfolder_id
+   *  The ID of the Brandfolder in which to create the section. If not provided,
+   *  we will attempt to use the default Brandfolder if one is defined.
+   * @param integer|null $position
+   *  This is where the new Section is displayed relative to other Sections.
+   *  Defaults to the last position. 0 means it will be first.
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#create-a-section
+   */
+  public function createSectionInBrandfolder(string $name, ?string $default_asset_type = 'GenericFile', ?string $brandfolder_id = NULL, int $position = NULL): object|false {
+    if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
+      $brandfolder_id = $this->default_brandfolder_id;
+    }
+
+    if (is_null($default_asset_type)) {
+      $default_asset_type = 'GenericFile';
+    }
+    $valid_asset_types = ['GenericFile', 'Color', 'Font', 'ExternalMedium', 'Person', 'Press', 'Text'];
+    if (!in_array($default_asset_type, $valid_asset_types)) {
+      $this->status = 0;
+      $this->message = 'Invalid default asset type. Valid options are "GenericFile," "Color," "Font," "ExternalMedium," "Person," "Press," and "Text."';
+
+      return false;
+    }
+
+    $attributes = [
+      'name' => $name,
+      'default_asset_type' => $default_asset_type,
+    ];
+    if (is_integer($position)) {
+      $attributes['position'] = $position;
+    }
+    $body = [
+      "data" => [
+        "attributes" => $attributes,
+      ],
+    ];
+
+    return $this->request('POST', "/brandfolders/$brandfolder_id/sections", [], $body);
+  }
+
+  /**
    * Gets custom field data for a Brandfolder.
    *
    * @param string|null $brandfolder_id
@@ -440,6 +512,12 @@ class Brandfolder {
    */
   public function listCustomFields(string $brandfolder_id = NULL, bool $include_values = false, bool $simple_format = false): array|object|false {
     if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
       $brandfolder_id = $this->default_brandfolder_id;
     }
 
@@ -496,6 +574,12 @@ class Brandfolder {
    */
   public function listLabelsInBrandfolder(string $brandfolder_id = NULL, bool $simple_format = false): array|false {
     if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
       $brandfolder_id = $this->default_brandfolder_id;
     }
 
@@ -707,6 +791,7 @@ class Brandfolder {
       $endpoint = "/collections/$collection/assets";
     }
     if (!isset($endpoint)) {
+      $this->status = 0;
       $this->message = 'A Brandfolder or a collection must be specified when creating an asset.';
 
       return false;
@@ -811,6 +896,7 @@ class Brandfolder {
       // the subsequent POST request).
       $custom_field_ids_and_names = $this->listCustomFields(NULL, false, true);
       if (!$custom_field_ids_and_names) {
+        $this->status = 0;
         $this->message = 'Could not retrieve custom fields from Brandfolder.';
 
         return false;
