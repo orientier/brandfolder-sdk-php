@@ -560,6 +560,26 @@ class Brandfolder {
   }
 
   /**
+   * Fetch an individual Section by ID.
+   *
+   * @param string $section_id
+   * @param array|null $query_params
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#fetch-a-section
+   */
+  public function fetchSection(string $section_id, ?array $query_params = []): object|false {
+    $result = $this->request('GET', "/sections/$section_id", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
    * Create a new section in a Brandfolder.
    *
    * @param string $name
