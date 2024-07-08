@@ -1325,6 +1325,87 @@ class Brandfolder {
   }
 
   /**
+   * Create a new invitation to an Organization, Brandfolder, Collection,
+   * Portal, or Brandguide.
+   *
+   * @param string $entity_type The type of entity to which you are inviting the
+   *  user. Valid values are: "organization," "brandfolder,"
+   *  "collection," "portal," "brandguide."
+   * @param string $entity_id The ID of the entity to which you are inviting the
+   *  user.
+   * @param string $email The email address to which the invitation should be
+   *  sent.
+   * @param string $permission_level The permission level to be granted to the
+   *  invitee. Valid values are: "guest," "collaborator," "admin," "owner."
+   *  Note: "owner" is only valid when inviting someone to an Organization.
+   * @param string $personal_message An optional message to include in the
+   *  invitation email.
+   * @param bool $prevent_email If true, the invitation email will not be sent.
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#create-an-invitation
+   */
+  public function createInvitation(string $entity_type, string $entity_id, string $email, string $permission_level, string $personal_message = '', bool $prevent_email = false): object|false {
+    $entity_endpoint_string = NULL;
+    switch ($entity_type) {
+      case 'organization':
+        $entity_endpoint_string = 'organizations';
+        break;
+      case 'brandfolder':
+        $entity_endpoint_string = 'brandfolders';
+        break;
+      case 'collection':
+        $entity_endpoint_string = 'collections';
+        break;
+      case 'portal':
+        $entity_endpoint_string = 'portals';
+        break;
+      case 'brandguide':
+        $entity_endpoint_string = 'brandguides';
+        break;
+      default:
+        $this->status = 0;
+        $this->message = 'Cannot create an invitation to this type of entity.';
+
+        return false;
+    }
+    $endpoint = "/$entity_endpoint_string/$entity_id/invitations";
+
+    // Ensure that the permission level is valid.
+    $valid_permission_levels = ['guest', 'collaborator', 'admin', 'owner'];
+    if (!in_array($permission_level, $valid_permission_levels)) {
+      $this->status = 0;
+      $this->message = 'Invalid permission level.';
+
+      return false;
+    }
+    if ($entity_type != 'organization' && $permission_level == 'owner') {
+      $this->status = 0;
+      $this->message = 'The "owner" permission level is only valid when inviting someone to an Organization.';
+
+      return false;
+    }
+
+    $result = $this->request('POST', $endpoint, [], [
+      'data' => [
+        'attributes' => [
+          'email' => $email,
+          'permission_level' => $permission_level,
+          'personal_message' => $personal_message,
+          'prevent_email' => $prevent_email,
+        ],
+      ],
+    ]);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
    * Lists Invitations to an Organization, Brandfolder, Collection, Portal,
    *  or Brandguide.
    *
@@ -1337,7 +1418,9 @@ class Brandfolder {
    *
    * @return object|false
    *
-   * @see https://developers.brandfolder.com/?http#list-invitations
+   * @see https://developers.brandfolder.com/docs/#list-invitations
+   *
+   * @todo: Use a more generic param signature, in line with createInvitation(), etc. (non-BC change).
    */
   public function listInvitations(?array $query_params = [], string $organization = NULL, string $brandfolder = NULL, string $collection = NULL, string $portal = NULL, string $brandguide = NULL): object|bool {
     if (!is_null($organization)) {
@@ -1386,6 +1469,42 @@ class Brandfolder {
 
       return false;
     }
+  }
+
+  /**
+   * Fetch an individual invitation by ID.
+   *
+   * @param string $invitation_id
+   * @param array|null $query_params
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#fetch-an-invitation
+   */
+  public function fetchInvitation(string $invitation_id, ?array $query_params = []): object|false {
+    $result = $this->request('GET', "/invitations/$invitation_id", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Delete an invitation.
+   *
+   * @param string $invitation_id
+   *
+   * @return bool true if the invitation was deleted successfully, false otherwise.
+   *
+   * @see https://developers.brandfolder.com/docs/#delete-an-invitation
+   */
+  public function deleteInvitation(string $invitation_id): bool {
+    $result = $this->request('DELETE', "/invitations/$invitation_id");
+    $is_success = $result !== false;
+
+    return $is_success;
   }
 
   /**
