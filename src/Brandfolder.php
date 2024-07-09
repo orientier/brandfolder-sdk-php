@@ -705,6 +705,125 @@ class Brandfolder {
   }
 
   /**
+   * Create custom field keys for a Brandfolder.
+   *
+   * This is only needed for setting up controlled Custom Fields. If this
+   * feature is enabled for your Brandfolder, you can set the allowed keys and
+   * optionally restrict their allowed values for Custom Fields using this
+   * method.
+   *
+   * @param array $custom_field_data
+   *  An array of associative arrays - one for each new custom field. Each
+   *  associative array should have the following structure:
+   *    - name: Required. The name of the custom field [key].
+   *    - allowed_values: Optional. The value that can be used with this key
+   *      when creating or updating any Custom Field on an Asset must be one of
+   *      these strings. If not included or empty array [], the values are not
+   *      restricted.
+   * @param string|null $brandfolder_id
+   *  The ID of the Brandfolder in which to create the custom field keys. If
+   *  not provided, we will attempt to use the default Brandfolder if one is
+   *  defined.
+   *
+   * @return object|false
+   *
+   * @see https://developer.brandfolder.com/docs/#create-custom-field-keys-for-a-brandfolder
+   */
+  public function createCustomFieldKeysForBrandfolder(array $custom_field_data, ?string $brandfolder_id = NULL): object|false {
+    if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
+      $brandfolder_id = $this->default_brandfolder_id;
+    }
+
+    // Pre-validate the custom field data.
+    foreach ($custom_field_data as $field) {
+      if (!isset($field['name'])) {
+        $this->status = 0;
+        $this->message = 'Custom field key name is required.';
+
+        return false;
+      }
+      // Ensure only valid keys exist.
+      $valid_keys = ['name', 'allowed_values'];
+      $field = array_intersect_key($field, array_flip($valid_keys));
+      // Ensure allowed_values is at least an array.
+      if (isset($field['allowed_values']) && !is_array($field['allowed_values'])) {
+        $this->status = 0;
+        $this->message = 'Allowed values must be an array of strings.';
+
+        return false;
+      }
+    }
+
+    $body = [
+      'data' => [
+        'attributes' => $custom_field_data
+      ],
+    ];
+
+    return $this->request('POST', "/brandfolders/$brandfolder_id/custom_field_keys", [], $body);
+  }
+
+  /**
+   * Update an individual custom field key by ID.
+   *
+   * @param string $custom_field_id
+   * @param array $attributes
+   *  An associative array of attributes to update. Valid keys are "name" and
+   *  "allowed_values."
+   *
+   * @return object|false
+   *
+   * @see https://developer.brandfolder.com/docs/#update-a-custom-field-key
+   */
+  public function updateCustomFieldKey(string $custom_field_id, array $attributes): object|false {
+    // Remove any invalid attributes, and ensure that we have at least one
+    // valid attribute to update.
+    // @todo: Test and consider allowing other, undocumented attributes.
+    $valid_attributes = ['name', 'allowed_values'];
+    $attributes = array_intersect_key($attributes, array_flip($valid_attributes));
+    if (empty($attributes)) {
+      $this->status = 0;
+      $this->message = 'No valid attributes provided for updating the Custom Field Key.';
+
+      return false;
+    }
+
+    $body = [
+      "data" => [
+        "attributes" => $attributes,
+      ],
+    ];
+
+    return $this->request('PUT', "/custom_field_keys/$custom_field_id", [], $body);
+  }
+
+  /**
+   * Delete a custom field key.
+   *
+   * Caution: be very careful when using this method, as it also deletes all
+   * associated values for the given key.
+   *
+   * @param string $custom_field_key_id
+   *
+   * @return bool
+   *  Returns true if the custom field key was successfully deleted.
+   *
+   * @see https://developers.brandfolder.com/docs/#delete-a-custom-field-key
+   */
+  public function deleteCustomFieldKey(string $custom_field_key_id): bool {
+    $result = $this->request('DELETE', "/custom_field_keys/$custom_field_key_id");
+    $is_success = $result !== false;
+
+    return $is_success;
+  }
+
+  /**
    * Gets Labels defined in a given Brandfolder, structured as a nested
    * associative array.
    *
@@ -1019,6 +1138,10 @@ class Brandfolder {
    *  (a) requires an extra API call to look up the custom field IDs, and
    *  (b) can cause functionality to break if you are invoking this method with
    *  a hard-coded name and the custom field's name is subsequently changed.
+   * @param string|null $brandfolder_id
+   *  The ID of the Brandfolder in which the asset resides. If not provided, we
+   *  will attempt to use the default Brandfolder if one is defined.
+   *  This is only necessary if using the "name" option for $field_key_type.
    *
    * @return bool true if all requests on success, false otherwise.
    *
@@ -1031,7 +1154,7 @@ class Brandfolder {
    *
    * @todo: Add a separate method such as "setCustomFieldValues()," designed to more directly work with the new endpoint, which is geared toward updating multiple assets with various values for the same custom field.
    */
-  public function addCustomFieldsToAsset(string $asset_id, array $custom_field_values, ?string $field_key_type = 'name'): bool {
+  public function addCustomFieldsToAsset(string $asset_id, array $custom_field_values, ?string $field_key_type = 'name', ?string $brandfolder_id = NULL): bool {
     $is_total_success = true;
     $messages = [];
 
@@ -1039,27 +1162,38 @@ class Brandfolder {
       // First we need to look up custom field keys/IDs, so we can map the
       // friendly string names to IDs (which the Brandfolder API requires for
       // the subsequent POST request).
-      $custom_field_ids_and_names = $this->listCustomFields(NULL, false, true);
+      if (is_null($brandfolder_id)) {
+        if (is_null($this->default_brandfolder_id)) {
+          $this->status = 0;
+          $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+          return false;
+        }
+        $brandfolder_id = $this->default_brandfolder_id;
+      }
+      $custom_field_ids_and_names = $this->listCustomFields($brandfolder_id, false, true);
       if (!$custom_field_ids_and_names) {
         $this->status = 0;
         $this->message = 'Could not retrieve custom fields from Brandfolder.';
 
         return false;
       }
+      $custom_field_names_and_ids = array_flip($custom_field_ids_and_names);
       $relevant_field_ids_and_values = [];
-      foreach ($custom_field_ids_and_names as $id => $name) {
-        if (isset($custom_field_values[$name])) {
-          $relevant_field_ids_and_values[$id] = $custom_field_values[$name];
+      foreach ($custom_field_values as $custom_field_key_name => $new_value) {
+        if (isset($custom_field_names_and_ids[$custom_field_key_name])) {
+          $custom_field_key_id = $custom_field_names_and_ids[$custom_field_key_name];
+          $relevant_field_ids_and_values[$custom_field_key_id] = $new_value;
         }
         else {
           $is_total_success = false;
-          $messages[] = "Custom field '$name' appears to no longer exist in Brandfolder, so we cannot add a value for it.";
+          $messages[] = "Custom field '$custom_field_key_name' appears to no longer exist in Brandfolder, so we cannot add a value for it.";
         }
       }
       $custom_field_values = $relevant_field_ids_and_values;
     }
 
-    foreach ($custom_field_values as $field_id => $value) {
+    foreach ($custom_field_values as $custom_field_key_id => $value) {
       $body = [
         'data' => [
           [
@@ -1078,7 +1212,7 @@ class Brandfolder {
         ],
       ];
 
-      $result = $this->request('POST', "/custom_field_keys/$field_id/custom_field_values", [], $body);
+      $result = $this->request('POST', "/custom_field_keys/$custom_field_key_id/custom_field_values", [], $body);
 
       if ($result) {
         $success_phrase = 'Successfully added';
@@ -1087,12 +1221,111 @@ class Brandfolder {
         $success_phrase = 'Failed to add';
         $is_total_success = false;
       }
-      $messages[] = "$success_phrase custom field value for field ID $field_id to asset $asset_id.";
+      $messages[] = "$success_phrase custom field value for custom field key ID $custom_field_key_id to asset $asset_id.";
     }
 
     $this->message = implode(' ', $messages);
 
     return $is_total_success;
+  }
+
+  /**
+   * Set custom field values for a given custom field, on one or more
+   * assets.
+   *
+   * @param string $custom_field_key_id
+   *  The ID of the custom field key for which to set values.
+   * @param array $custom_field_values_per_asset
+   *  An associative array where keys are asset IDs and values are the new
+   *  values for the custom field on the asset.
+   *
+   * @return bool|object
+   *
+   * @see https://developers.brandfolder.com/docs/#create-custom-fields-for-an-asset
+   */
+  public function setCustomFieldValuesForAssets(string $custom_field_key_id, array $custom_field_values_per_asset): bool|object {
+    $body = [
+      'data' => []
+    ];
+
+    foreach ($custom_field_values_per_asset as $asset_id => $field_value) {
+      $body['data'][] = [
+        'attributes'    => [
+          'value' => $field_value,
+        ],
+        'relationships' => [
+          'asset' => [
+            'data' => [
+              'type' => 'assets',
+              'id'   => $asset_id,
+            ],
+          ],
+        ],
+      ];
+    }
+
+    return $this->request('POST', "/custom_field_keys/$custom_field_key_id/custom_field_values", [], $body);
+  }
+
+  /**
+   * List custom field values for a given asset.
+   *
+   * @param string $asset_id
+   * @param array|null $query_params
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#list-custom-field-values-for-an-asset
+   */
+  public function listCustomFieldValuesForAsset(string $asset_id, ?array $query_params = []): object|false {
+    $result = $this->request('GET', "/assets/$asset_id/custom_field_values", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Update an existing custom field value by value ID
+   *
+   * Note: the custom field value ID  is different than the custom fieldd key
+   * ID. Every single value instance has its own ID.
+   *
+   * @param string $custom_field_value_id
+   * @param string $value
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#update-a-custom-field-value
+   */
+  public function updateCustomFieldValue(string $custom_field_value_id, string $value): object|false {
+    $body = [
+      "data" => [
+        "attributes" => [
+          "value" => $value,
+        ],
+      ],
+    ];
+
+    return $this->request('PUT', "/custom_field_values/$custom_field_value_id", [], $body);
+  }
+
+  /**
+   * Delete a custom field value.
+   *
+   * @param string $custom_field_value_id
+   *
+   * @return bool true on successful deletion, false otherwise.
+   *
+   * @see https://developers.brandfolder.com/docs/#delete-a-custom-field-value
+   */
+  public function deleteCustomFieldValue(string $custom_field_value_id): bool {
+    $result = $this->request('DELETE', "/custom_field_values/$custom_field_value_id");
+    $is_success = $result !== false;
+
+    return $is_success;
   }
 
   /**
