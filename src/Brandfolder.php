@@ -293,7 +293,7 @@ class Brandfolder {
    * @param string $name
    * @param string|null $tagline
    *  A descriptive subtitle/short description of the Brandfolder.
-   * @param string|null $privacy
+   * @param string $privacy
    *  The privacy setting for the new Brandfolder. Valid options are "private"
    *  (the default) and "public."
    * @param string|null $slug
@@ -304,6 +304,10 @@ class Brandfolder {
    *  slug of "my-brandfolder").
    *  If the provided slug is valid but not unique, it will have a number
    *  appended to make it unique.
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#create-a-brandfolder-in-an-organization
    */
   public function createBrandfolderInOrganization(string $organization_id, string $name, string $tagline = NULL, string $privacy = 'private', string $slug = NULL): object|false {
     $attributes = [
@@ -1817,20 +1821,25 @@ class Brandfolder {
   }
 
   /**
-   * Retrieves tags used in a Brandfolder.
+   * Retrieves tags used in a Brandfolder or Collection.
    *
    * @param array|null $query_params
-   * @param string|null $collection ID of a collection. I provided, only fetch tags
-   *  associated with that collection.
+   * @param string|null $collection ID of a collection. If provided, only fetch
+   *  tags associated with that collection.
    * @param bool $should_return_data_only If true, return only the "data" array
    *  nested within the API response. If false, return the entire response
-   *  object. Defaults to true (data array only) for backwards compatibility.
+   *  object. Defaults to true (data array only) for backward compatibility.
    *
    * @return array|object|false On success, returns an array of tag items
    *  (if $should_return_data_only is true), or an object containing such an
    *  array plus a "meta" array with pagination data. false on failure.
    *
    * @see https://developers.brandfolder.com/docs/#list-tags
+   * 
+   * @deprecated This is provided mainly for backward compatibility.
+   *  Consider using other tag listing methods.
+   * @see listTagsInBrandfolder()
+   * @see listTagsInCollection()
    */
   public function getTags(?array $query_params = [], string $collection = NULL, bool $should_return_data_only = true): array|object|false {
     if (!is_null($collection)) {
@@ -1841,7 +1850,7 @@ class Brandfolder {
     }
     if (!isset($endpoint)) {
       $this->status = 0;
-      $this->message = 'Could not determine endpoint for listing assets. Please set a default Brandfolder or provide a collection ID.';
+      $this->message = 'Could not determine endpoint for listing tags. Please set a default Brandfolder or provide a collection ID.';
 
       return false;
     }
@@ -1854,7 +1863,7 @@ class Brandfolder {
     }
 
     // For backwards compatibility, return only the data array unless otherwise
-    // requested. Note that the tags endpoint does not support any "included"
+    // requested. Note that these tags endpoints do not support any "included"
     // data, so the only difference here is the wrapping object that might also
     // contain a "meta" array.
     if ($should_return_data_only) {
@@ -1863,6 +1872,160 @@ class Brandfolder {
     else {
       return $result;
     }
+  }
+
+  /**
+   * List tags in a Brandfolder.
+   *
+   * @param string|null $brandfolder_id
+   *  The ID of the Brandfolder for which to list tags. If not provided, the
+   *  default Brandfolder ID will be used if set.
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-tags
+   */
+  public function listTagsInBrandfolder(?string $brandfolder_id = NULL, ?array $query_params = []): object|bool {
+    if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
+      $brandfolder_id = $this->default_brandfolder_id;
+    }
+
+    // Note: there is never any "included" data for these responses.
+
+    return $this->request('GET', "/brandfolders/$brandfolder_id/tags", $query_params);
+  }
+
+  /**
+   * List tags in a Collection.
+   *
+   * @param string|null $collection_id
+   *  The ID of the Collection for which to list tags. If not provided, the
+   *  default Collection ID will be used if set.
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-tags
+   */
+  public function listTagsInCollection(?string $collection_id = NULL, ?array $query_params = []): object|bool {
+    if (is_null($collection_id)) {
+      if (is_null($this->default_collection_id)) {
+        $this->status = 0;
+        $this->message = 'A Collection ID must be provided or a default Collection must be set.';
+
+        return false;
+      }
+      $collection_id = $this->default_collection_id;
+    }
+
+    // Note: there is never any "included" data for these responses.
+
+    return $this->request('GET', "/collections/$collection_id/tags", $query_params);
+  }
+
+  /**
+   * List tags for a given asset.
+   *
+   * @param string $asset_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-tags-for-an-asset
+   */
+  public function listTagsForAsset(string $asset_id, ?array $query_params = []): object|bool {
+    $result = $this->request('GET', "/assets/$asset_id/tags", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Create tags for an asset (i.e. apply tags to an asset).
+   *
+   * @param string $asset_id
+   * @param array $tag_names
+   *  An array of strings, where each one is the textual name of a tag to
+   *  apply to the asset. These do not need to have been defined anywhere else
+   *  previously.
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#create-tags-for-an-asset
+   */
+  public function createTagsForAsset(string $asset_id, array $tag_names): object|bool {
+    $body = [
+      'data' => [
+        'attributes' => []
+      ],
+    ];
+
+    foreach ($tag_names as $tag_name) {
+      $body['data']['attributes'][] = [
+        'name' => $tag_name,
+      ];
+    }
+
+    return $this->request('POST', "/assets/$asset_id/tags", [], $body);
+  }
+
+  /**
+   * Update an existing tag. Note: this only updates one particular instance of
+   * a tag name. Whenever you create a new tag for an asset, a new ID is created
+   * for that instance, even if the tag name is already used elsewhere.
+   * Therefore, a given tag ID is only ever used in one place.
+   *
+   * @param string $tag_id
+   * @param string $tag_name
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#update-a-tag
+   */
+  public function updateTag(string $tag_id, string $tag_name): object|bool {
+    $body = [
+      'data' => [
+        'attributes' => [
+          'name' => $tag_name,
+        ],
+      ],
+    ];
+
+    return $this->request('PUT', "/tags/$tag_id", [], $body);
+  }
+
+  /**
+   * Delete one or more tags associated with a given asset.
+   *
+   * @param string $asset_id
+   * @param array $tag_names
+   *
+   * @return bool true on successful deletion, false otherwise.
+   *
+   * @see https://developers.brandfolder.com/docs/#delete-a-tag
+   */
+  public function deleteTagsOnAsset(string $asset_id, array $tag_names): bool {
+    $result = $this->request('DELETE', "/async/tags/assets/$asset_id", [], [
+      'tags' => $tag_names,
+//      'locale' => 'en',
+    ]);
+
+    // @todo: Look into locale-specific deletion.
+    // @todo: Add more support for async endpoints if/when applicable.
+
+    $is_success = $result !== false;
+
+    return $is_success;
   }
 
   /**
