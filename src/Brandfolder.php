@@ -1073,13 +1073,18 @@ class Brandfolder {
       return false;
     }
 
-    // Format any date values.
+    // Format & loosely valadate any date values.
     array_walk($assets, function (&$asset) {
-      if (!empty($asset['availability_start'])) {
-        $asset['availability_start'] = $this->formatDateTime($asset['availability_start']);
-      }
-      if (!empty($asset['availability_end'])) {
-        $asset['availability_end'] = $this->formatDateTime($asset['availability_end']);
+      foreach ([ 'availability_start', 'availability_end' ] as $date_field) {
+        if (!empty($asset[$date_field])) {
+          $formatted_datetime = $this->formatDateTime($asset[$date_field]);
+          if ($formatted_datetime) {
+            $asset[$date_field] = $formatted_datetime;
+          }
+          else {
+            unset($asset[$date_field]);
+          }
+        }
       }
     });
 
@@ -1109,12 +1114,20 @@ class Brandfolder {
    * @param null $name
    * @param null $description
    * @param null $attachments
+   * @param string|int|\DateTime|null $availability_start
+   *  To set/update the date at which this asset will be published, provide a 
+   *  date/time string, a timestamp, or a DateTime object. Alternatively,
+   *  to remove/clear an existing start date, provide the string "none."
+   * @param string|int|\DateTime|null $availability_end
+   *  To set/update the date at which this asset will be unpublished, provide a
+   *  date/time string, a timestamp, or a DateTime object. Alternatively,
+   *  to remove/clear an existing end date, provide the string "none."
    *
    * @return object|false
    *
    * @see https://developers.brandfolder.com/#update-an-asset
    */
-  public function updateAsset(string $asset_id, $name = NULL, $description = NULL, $attachments = NULL): object|false {
+  public function updateAsset(string $asset_id, $name = NULL, $description = NULL, $attachments = NULL, string|int|\DateTime $availability_start = NULL, string|int|\DateTime $availability_end = NULL): object|false {
     $attributes = [];
     if (!is_null($name)) {
       $attributes['name'] = $name;
@@ -1124,6 +1137,28 @@ class Brandfolder {
     }
     if (!is_null($attachments)) {
       $attributes['attachments'] = $attachments;
+    }
+    if (!is_null($availability_start)) {
+      if ($availability_start === 'none') {
+        $attributes['availability_start'] = NULL;
+      }
+      else {
+        $formatted_datetime = $this->formatDateTime($availability_start);
+        if ($formatted_datetime) {
+          $attributes['availability_start'] = $formatted_datetime;
+        }
+      }
+    }
+    if (!is_null($availability_end)) {
+      if ($availability_end === 'none') {
+        $attributes['availability_end'] = NULL;
+      }
+      else {
+        $formatted_datetime = $this->formatDateTime($availability_end);
+        if ($formatted_datetime) {
+          $attributes['availability_end'] = $formatted_datetime;
+        }
+      }
     }
 
     $body = [
