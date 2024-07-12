@@ -1003,12 +1003,16 @@ class Brandfolder {
    * @param string|null $description
    * @param string|null $brandfolder
    * @param string|null $collection
+   * @param string|int|\DateTime|null $availability_start
+   *  This can be a date/time string, a timestamp, or a DateTime object.
+   * @param string|int|\DateTime|null $availability_end
+   *  This can be a date/time string, a timestamp, or a DateTime object.
    *
    * @return object|false
    *
    * @see https://developer.brandfolder.com/#create-assets
    */
-  public function createAsset(string $name, array $attachments, string $section, string $description = NULL, string $brandfolder = NULL, string $collection = NULL): object|false {
+  public function createAsset(string $name, array $attachments, string $section, string $description = NULL, string $brandfolder = NULL, string $collection = NULL, string|int|\DateTime $availability_start = NULL, string|int|\DateTime $availability_end = NULL): object|false {
     $asset = [
       'name'        => $name,
       'attachments' => $attachments,
@@ -1016,15 +1020,15 @@ class Brandfolder {
     if (!is_null($description)) {
       $asset['description'] = $description;
     }
+    if (!is_null($availability_start)) {
+      $asset['availability_start'] = $availability_start;
+    }
+    if (!is_null($availability_end)) {
+      $asset['availability_end'] = $availability_end;
+    }
     $assets = [$asset];
 
-    $result = $this->createAssets($assets, $section, $brandfolder, $collection);
-    if ($result && !empty($result->data)) {
-
-      return $result->data[0];
-    }
-
-    return false;
+    return $this->createAssets($assets, $section, $brandfolder, $collection);
   }
 
   /**
@@ -1034,7 +1038,11 @@ class Brandfolder {
    *  Array of arrays with asset data. Each asset data array should consist of:
    *    'name' (string)
    *    'description' (optional string)
-   *    'attachments' (array)
+   *    'availability_start' (optional string|int|\DateTime)
+   *    'availability_end' (optional string|int|\DateTime)
+   *    'attachments' (array), consisting of:
+   *      'url' (string)
+   *      'filename' (string)
    * @param string $section
    * @param string|null $brandfolder
    * @param string|null $collection
@@ -1064,6 +1072,16 @@ class Brandfolder {
 
       return false;
     }
+
+    // Format any date values.
+    array_walk($assets, function (&$asset) {
+      if (!empty($asset['availability_start'])) {
+        $asset['availability_start'] = $this->formatDateTime($asset['availability_start']);
+      }
+      if (!empty($asset['availability_end'])) {
+        $asset['availability_end'] = $this->formatDateTime($asset['availability_end']);
+      }
+    });
 
     $body = [
       "data"        => [
@@ -1281,7 +1299,7 @@ class Brandfolder {
    *
    * @see https://developers.brandfolder.com/docs/#list-custom-field-values-for-an-asset
    */
-  public function listCustomFieldValuesForAsset(string $asset_id, ?array $query_params = []): object|false {
+  public function listCustomFieldValuesForAsset(string $asset_id, array $query_params = []): object|false {
     $result = $this->request('GET', "/assets/$asset_id/custom_field_values", $query_params);
 
     if ($result) {
@@ -1835,7 +1853,7 @@ class Brandfolder {
    *  array plus a "meta" array with pagination data. false on failure.
    *
    * @see https://developers.brandfolder.com/docs/#list-tags
-   * 
+   *
    * @deprecated This is provided mainly for backward compatibility.
    *  Consider using other tag listing methods.
    * @see listTagsInBrandfolder()
@@ -2206,9 +2224,33 @@ class Brandfolder {
    */
   public function deleteInvitation(string $invitation_id): bool {
     $result = $this->request('DELETE', "/invitations/$invitation_id");
-    $is_success = $result !== false;
+    $is_success = $result !== FALSE;
 
     return $is_success;
+  }
+
+  /**
+   * Accept various types of date/time inputs and produce a date/time string
+   * in a format suitable for the Brandfolder API.
+   *
+   * @param string|int|\DateTime $date_time
+   *  An English date/time string, timestamp, or DateTime object.
+   *
+   * @return string
+   */
+  protected function formatDateTime(string|int|\DateTime $date_time): string {
+    if (!($date_time instanceof \DateTime)) {
+      try {
+        $date_time = new \DateTime($date_time);
+      }
+      catch (\Exception $e) {
+        return FALSE;
+      }
+    }
+
+    $brandfolder_api_date_format = 'Y-m-d\TH:i:s.v\Z';
+
+    return $date_time->format($brandfolder_api_date_format);
   }
 
   /**
