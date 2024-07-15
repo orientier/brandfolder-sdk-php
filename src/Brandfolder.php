@@ -2449,6 +2449,106 @@ class Brandfolder {
   }
 
   /**
+   * List user permissions for an organization.
+   *
+   * @param string $organization_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-user-permissions
+   */
+  public function listUserPermissionsForOrganization(string $organization_id, ?array $query_params = []): object|bool {
+    $result = $this->request('GET', "/organizations/$organization_id/user_permissions", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * List user permissions for a Brandfolder.
+   *
+   * @param string $brandfolder_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-user-permissions
+   */
+  public function listUserPermissionsForBrandfolder(string $brandfolder_id, ?array $query_params = []): object|bool {
+    $result = $this->request('GET', "/brandfolders/$brandfolder_id/user_permissions", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * List user permissions for a Collection.
+   *
+   * @param string $collection_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-user-permissions
+   */
+  public function listUserPermissionsForCollection(string $collection_id, ?array $query_params = []): object|bool {
+    $result = $this->request('GET', "/collections/$collection_id/user_permissions", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Fetch a user permission by ID.
+   *
+   * @param string $user_permission_id
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#fetch-a-user-permission
+   */
+  public function fetchUserPermission(string $user_permission_id): object|false {
+    $result = $this->request('GET', "/user_permissions/$user_permission_id");
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * Delete a user permission.
+   *
+   * Note: you may receive a "403: access denied" response if you attempt to
+   * delete a permission for the same user whose API key is being used to make
+   * the request.
+   *
+   * @param string $user_permission_id
+   *
+   * @return bool true if the user permission was deleted successfully;
+   *  false otherwise.
+   *
+   * @see https://developers.brandfolder.com/docs/#delete-a-user-permission-revoke-access
+   */
+  public function deleteUserPermission(string $user_permission_id): bool {
+    $result = $this->request('DELETE', "/user_permissions/$user_permission_id");
+    $is_success = $result !== FALSE;
+
+    return $is_success;
+  }
+
+  /**
    * Accept various types of date/time inputs and produce a date/time string
    * in a format suitable for the Brandfolder API.
    *
