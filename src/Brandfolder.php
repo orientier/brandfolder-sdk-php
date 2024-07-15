@@ -911,6 +911,130 @@ class Brandfolder {
   }
 
   /**
+   * Fetch an individual Label by ID.
+   *
+   * @param string $label_id
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#fetch-a-label
+   */
+  public function fetchLabel(string $label_id): object|false {
+
+    return $this->request('GET', "/labels/$label_id");
+  }
+
+  /**
+   * Create a new Label in a Brandfolder.
+   *
+   * @param string $name
+   *  The name of the label.
+   * @param string|null $brandfolder_id
+   *  The ID of the Brandfolder in which to create the label. If not provided,
+   *  we will attempt to use the default Brandfolder if one is defined.
+   * @param string|null $parent_id
+   *  The ID/key of the parent label, if any.
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#create-a-label
+   */
+  public function createLabelInBrandfolder(string $name, ?string $brandfolder_id = NULL, ?string $parent_id = NULL): object|false {
+    if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
+      $brandfolder_id = $this->default_brandfolder_id;
+    }
+
+    $attributes = [
+      'name' => $name,
+    ];
+    if (!is_null($parent_id)) {
+      $attributes['parent_key'] = $parent_id;
+    }
+    $body = [
+      "data" => [
+        "attributes" => $attributes,
+      ],
+    ];
+
+    return $this->request('POST', "/brandfolders/$brandfolder_id/labels", [], $body);
+  }
+
+  /**
+   * Update an existing Label.
+   *
+   * @param string $label_id
+   * @param array $new_name
+   *  A new name for the label.
+   *  Note: parent_id/parent_key is not an option here. If you wish to relocate
+   *  the label, use the moveLabel() method.
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#update-a-label
+   */
+  public function updateLabel(string $label_id, string $new_name): object|false {
+    $body = [
+      "data" => [
+        "attributes" => [
+          'name' => $new_name,
+        ],
+      ],
+    ];
+
+    return $this->request('PUT', "/labels/$label_id", [], $body);
+  }
+
+  /**
+   * Move a Label to a new parent Label.
+   *
+   * @param string $label_id
+   * @param string $new_parent_id
+   *  The ID/key of the label beneath which you want this label to live.
+   *  If you wish to move the label to the top level, specify "root" here.
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#move-a-label
+   */
+  public function moveLabel(string $label_id, string $new_parent_id): object|false {
+    if ($new_parent_id === 'root') {
+      $new_parent_id = NULL;
+    }
+    $body = [
+      "data" => [
+        "attributes" => [
+          'parent_key' => $new_parent_id,
+        ],
+      ],
+    ];
+
+    return $this->request('PUT', "/labels/$label_id/move", [], $body);
+  }
+
+  /**
+   * Delete a Label.
+   *
+   * @param string $label_id
+   *
+   * @return bool
+   *
+   * @see https://developers.brandfolder.com/docs/#delete-a-label
+   */
+  public function deleteLabel(string $label_id): bool {
+    $result = $this->request('DELETE', "/labels/$label_id");
+    $is_success = $result !== false;
+
+    return $is_success;
+  }
+
+
+  /**
    * Fetches an individual asset.
    *
    * @param string $asset_id
@@ -1115,7 +1239,7 @@ class Brandfolder {
    * @param null $description
    * @param null $attachments
    * @param string|int|\DateTime|null $availability_start
-   *  To set/update the date at which this asset will be published, provide a 
+   *  To set/update the date at which this asset will be published, provide a
    *  date/time string, a timestamp, or a DateTime object. Alternatively,
    *  to remove/clear an existing start date, provide the string "none."
    * @param string|int|\DateTime|null $availability_end
@@ -1505,6 +1629,66 @@ class Brandfolder {
   public function listAssetsInOrganization(string $organization_id, ?array $query_params = []): object|bool {
     $endpoint = "/organizations/$organization_id/assets";
     $result = $this->request('GET', $endpoint, $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * List Assets in a Brandfolder.
+   *
+   * @param string $brandfolder_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-assets
+   */
+  public function listAssetsInBrandfolder(string $brandfolder_id, ?array $query_params = []): object|bool {
+    $result = $this->request('GET', "/brandfolders/$brandfolder_id/assets", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * List Assets in a Collection.
+   *
+   * @param string $collection_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-assets
+   */
+  public function listAssetsInCollection(string $collection_id, ?array $query_params = []): object|bool {
+    $result = $this->request('GET', "/collections/$collection_id/assets", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return $result;
+  }
+
+  /**
+   * List Assets in a label.
+   *
+   * @param string $label_id
+   * @param array|null $query_params
+   *
+   * @return object|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-assets
+   */
+  public function listAssetsInLabel(string $label_id, ?array $query_params = []): object|bool {
+    $result = $this->request('GET', "/labels/$label_id/assets", $query_params);
 
     if ($result) {
       $this->processResultData($result);
