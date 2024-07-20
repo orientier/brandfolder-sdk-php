@@ -179,20 +179,31 @@ class BrandfolderClient {
    * @see https://developers.brandfolder.com/?http#list-organizations
    *
    * @code
-   * $bf_client = new Brandfolder($api_key);
-   * $organizations = $bf_client->listOrganizations();
+   *  $bf = new BrandfolderClient($api_key);
+   *  $organizations = $bf->listOrganizations(['include' => 'brandfolders']);
+   *
+   *  // Example of processing the result data.
+   *  if ($organizations) {
+   *    foreach ($organizations->data as $org) {
+   *      echo "{$org->attributes->name} ({$org->attributes->id}) \n";
+   *      if (!empty($org->brandfolders)) {
+   *        foreach ($org->brandfolders as $brandfolder_id => $brandfolder) {
+   *          echo "  {$brandfolder->name} ($brandfolder_id) \n";
+   *        }
+   *      }
+   *    }
+   *  }
    * @endcode
    */
   public function listOrganizations(array $query_params = []): object|false {
-    $result = $this->getAll('/organizations', $query_params);
 
-    $this->processResultData($result);
-
-    return $result;
+    return $this->getAll('/organizations', $query_params);
   }
 
   /**
    * Alternate name for backward compatibility.
+   *
+   * @deprecated Use listOrganizations() instead.
    *
    * @see Brandfolder::listOrganizations()
    */
@@ -212,8 +223,18 @@ class BrandfolderClient {
    * @see https://developers.brandfolder.com/docs/#fetch-an-organization
    *
    * @code
-   * $bf_client = new Brandfolder($api_key);
-   * $organization = $bf_client->fetchOrganization($organization_id);
+   *  $bf = new BrandfolderClient($api_key);
+   *  $org = $bf->fetchOrganization(['include' => 'brandfolders']);
+   *
+   *  // Example of processing the result data.
+   *  if ($org) {
+   *    echo "{$org->attributes->name} ({$org->attributes->id}) \n";
+   *    if (!empty($org->brandfolders)) {
+   *      foreach ($org->brandfolders as $brandfolder_id => $brandfolder) {
+   *        echo "  {$brandfolder->name} ($brandfolder_id) \n";
+   *      }
+   *    }
+   *  }
    * @endcode
    */
   public function fetchOrganization(string $organization_id, array $query_params = []): object|false {
@@ -236,8 +257,76 @@ class BrandfolderClient {
    * @return array|object|false
    *
    * @see https://developers.brandfolder.com/docs/#list-brandfolders
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $brandfolders = $bf->listBrandfolders(['include' => 'collections']);
+   *
+   *  // Example of processing the result data.
+   *  if ($brandfolders) {
+   *    foreach ($brandfolders->data as $brandfolder) {
+   *      echo "{$brandfolder->attributes->name} ({$brandfolder->id}) \n";
+   *      if (!empty($brandfolder->collections)) {
+   *        foreach ($brandfolder->collections as $collection_id => $collection) {
+   *          echo "  {$collection->name} ($collection_id) \n";
+   *        }
+   *      }
+   *    }
+   *  }
+   * @endcode
    */
-  public function listBrandfolders(array $query_params = [], bool $simple_format = true): object|bool|array {
+  public function listBrandfolders(array $query_params = []): object|bool {
+    $result = $this->request('/brandfolders', $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return false;
+  }
+
+  /**
+   * Get an array containing the names of all Brandfolders (to which the
+   * current user has access), keyed by Brandfolder ID.
+   *
+   * @return array|bool
+   *
+   * @see https://developers.brandfolder.com/docs/#list-brandfolders
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $brandfolders = $bf->listAllBrandfolderNames();
+   *
+   *  // Example of processing the result data.
+   *  if ($brandfolders) {
+   *    foreach ($brandfolders as $brandfolder_id => $brandfolder_name) {
+   *      echo "{$brandfolder_name} ({$brandfolder_id}) \n";
+   *    }
+   *  }
+   * @endcode
+   */
+  public function listAllBrandfolderNames(): array|bool {
+    $bf_data = $this->getAll('/brandfolders');
+    if ($bf_data) {
+      $brandfolders = [];
+      foreach ($bf_data->data as $brandfolder) {
+        $brandfolders[$brandfolder->id] = $brandfolder->attributes->name;
+      }
+
+      return $brandfolders;
+    }
+
+    return false;
+  }
+
+  /**
+   * Get all Brandfolders, in one of two formats.
+   *
+   * @deprecated Use listBrandfolders() or listAllBrandfolderNames() instead.
+   *
+   * @see listBrandfolders()
+   */
+  public function getBrandfolders(array $query_params = [], bool $simple_format = true): object|bool|array {
     $bf_data = $this->getAll('/brandfolders', $query_params);
     if ($bf_data) {
       if ($simple_format) {
@@ -256,15 +345,6 @@ class BrandfolderClient {
     return false;
   }
 
-  /**
-   * Alternative name for backward compatibility.
-   *
-   * @see listBrandfolders()
-   */
-  public function getBrandfolders(array $query_params = [], bool $simple_format = true): object|bool|array {
-
-      return $this->listBrandfolders($query_params, $simple_format);
-  }
 
   /**
    * Fetch an individual Brandfolder by ID.
@@ -275,6 +355,21 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#fetch-a-brandfolder
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $brandfolder = $bf->fetchBrandfolder($brandfolder_id, ['include' => 'sections']);
+   *
+   *  // Example of processing the result data.
+   *  if ($brandfolder) {
+   *    echo "{$brandfolder->attributes->name} ({$brandfolder->id}) \n";
+   *    if (!empty($brandfolder->sections)) {
+   *      foreach ($brandfolder->sections as $section_id => $section) {
+   *        echo "  {$section->name} ($section_id) \n";
+   *      }
+   *    }
+   *  }
+   * @endcode
    */
   public function fetchBrandfolder(string $brandfolder_id, ?array $query_params = []): object|false {
     $result = $this->request('GET', "/brandfolders/$brandfolder_id", $query_params);
@@ -308,6 +403,16 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#create-a-brandfolder-in-an-organization
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $new_brandfolder = $bf->createBrandfolderInOrganization($organization_id, 'My Brandfolder', 'You expected this - Brandfolder's Brandfolder!', 'public');
+   *
+   *  // Example of processing the result data.
+   *  if ($new_brandfolder) {
+   *    echo "New Brandfolder created: {$new_brandfolder->attributes->name} ({$new_brandfolder->id}) \n";
+   *  }
+   * @endcode
    */
   public function createBrandfolderInOrganization(string $organization_id, string $name, string $tagline = NULL, string $privacy = 'private', string $slug = NULL): object|false {
     $attributes = [
@@ -339,16 +444,45 @@ class BrandfolderClient {
   }
 
   /**
-   * Gets Collections to which the current user has access.
+   * Lists Collections to which the current user has access.
    *
    * @param array $query_params
    *
    * @return object|false
    *
    * @see https://developers.brandfolder.com/?http#list-collections
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $collections = $bf->listCollectionsForUser(['include' => 'brandfolder']);
+   *
+   *  // Example of processing the result data.
+   *  if ($collections) {
+   *    foreach ($collections->data as $collection) {
+   *      echo "{$collection->attributes->name} ({$collection->id}) \n";
+   *      if (!empty($collection->brandfolders)) {
+   *        $brandfolder = reset($collection->brandfolders);
+   *        echo "  Brandfolder: {$brandfolder->name} ({$brandfolder->id}) \n";
+   *      }
+   *    }
+   *  }
+   * @endcode
+   */
+  public function listCollectionsForUser(array $query_params = []): object|false {
+
+    return $this->getAll('/collections', $query_params);
+  }
+
+  /**
+   * Alternate name for backward compatibility.
+   *
+   * @deprecated Use listCollectionsForUser() instead.
+   *
+   * @see BrandfolderClient::listCollectionsForUser()
    */
   public function getCollectionsForUser(array $query_params = []): object|false {
-    return $this->getAll('/collections', $query_params);
+
+    return $this->listCollectionsForUser($query_params);
   }
 
   /**
@@ -356,16 +490,24 @@ class BrandfolderClient {
    *
    * @param string|null $brandfolder_id
    * @param array $query_params
-   * @param bool $simple_format If true, return a flat array whose keys are
-   *  collection IDs and whose values are collection names. If false, return
-   *  the full result object with all core collection data and any included
-   *  data.
    *
    * @return array|object|false
    *
    * @see https://developers.brandfolder.com/?http#list-collections
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $collections = $bf->listCollectionsInBrandfolder($brandfolder_id, ['fields' => 'asset_count']);
+   *
+   *  // Example of processing the result data.
+   *  if ($collections) {
+   *    foreach ($collections->data as $collection) {
+   *      echo "{$collection->attributes->name} ({$collection->id}): {$collection->attributes->asset_count} assets \n";
+   *    }
+   *  }
+   * @endcode
    */
-  public function getCollectionsInBrandfolder(string $brandfolder_id = NULL, array $query_params = [], bool $simple_format = true): array|object|false {
+  public function listCollectionsInBrandfolder(string $brandfolder_id = NULL, array $query_params = []): object|false {
     if (is_null($brandfolder_id)) {
       if (is_null($this->default_brandfolder_id)) {
         $this->status = 0;
@@ -376,23 +518,80 @@ class BrandfolderClient {
       $brandfolder_id = $this->default_brandfolder_id;
     }
 
-    $collection_result = $this->getAll("/brandfolders/$brandfolder_id/collections", $query_params);
-    if ($collection_result) {
-      if ($simple_format) {
-        $collections = [];
-        foreach ($collection_result->data as $collection) {
-          $collections[$collection->id] = $collection->attributes->name;
-        }
+    $result = $this->request('GET', "/brandfolders/$brandfolder_id/collections", $query_params);
 
-        return $collections;
-      }
-      else {
+    if ($result) {
+      $this->processResultData($result);
+    }
 
-        return $collection_result;
+    return $result;
+  }
+
+  /**
+   * Get a simple array of all Collection names in a Brandfolder, keyed by ID.
+   *
+   * @param string|null $brandfolder_id
+   *  The ID of the Brandfolder from which to list Collections. If not provided,
+   *  we will attempt to use the default Brandfolder, if defined.
+   *
+   * @return array|false
+   *
+   * @see https://developers.brandfolder.com/?http#list-collections
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $collections = $bf->listAllCollectionNamesInBrandfolder($brandfolder_id);
+   *
+   *  // Example of processing the result data.
+   *  echo "Collections in Brandfolder: \n";
+   *  if ($collections) {
+   *    foreach ($collections as $collection_id => $collection_name) {
+   *      echo "{$collection_name} ({$collection_id}) \n";
+   *    }
+   *  }
+   * @endcode
+   */
+  public function listAllCollectionNamesInBrandfolder(string $brandfolder_id = NULL): array|false {
+    if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
       }
+      $brandfolder_id = $this->default_brandfolder_id;
+    }
+
+    $result = $this->getAll("/brandfolders/$brandfolder_id/collections");
+
+    if ($result) {
+      $collections = [];
+      foreach ($result->data as $collection) {
+        $collections[$collection->id] = $collection->attributes->name;
+      }
+
+      return $collections;
     }
 
     return false;
+  }
+
+  /**
+   * Alternate name for backward compatibility.
+   *
+   * @deprecated Use listCollectionsInBrandfolder() or
+   *  listAllCollectionNamesInBrandfolder() instead.
+   *
+   * @see BrandfolderClient::listCollectionsInBrandfolder()
+   * @see BrandfolderClient::listAllCollectionNamesInBrandfolder()
+   */
+  public function getCollectionsInBrandfolder(string $brandfolder_id = NULL, array $query_params = [], bool $simple_format = true): array|object|false {
+    if ($simple_format) {
+
+      return $this->listAllCollectionNamesInBrandfolder($brandfolder_id);
+    }
+
+    return $this->listCollectionsInBrandfolder($brandfolder_id, $query_params);
   }
 
   /**
@@ -521,19 +720,16 @@ class BrandfolderClient {
   }
 
   /**
-   * Gets Sections defined in a given Brandfolder.
+   * List Sections in a Brandfolder.
    *
    * @param string|null $brandfolder_id
    * @param array $query_params
-   * @param bool $simple_format
-   *  If true, return a flat array whose keys are section IDs and whose values
-   *  are section names.
    *
-   * @return array|object|false
+   * @return object|false
    *
    * @see https://developers.brandfolder.com/?http#sections
    */
-  public function listSectionsInBrandfolder(string $brandfolder_id = NULL, array $query_params = [], bool $simple_format = false): array|object|false {
+  public function listSectionsInBrandfolder(string $brandfolder_id = NULL, array $query_params = []): object|false {
     if (is_null($brandfolder_id)) {
       if (is_null($this->default_brandfolder_id)) {
         $this->status = 0;
@@ -544,20 +740,96 @@ class BrandfolderClient {
       $brandfolder_id = $this->default_brandfolder_id;
     }
 
-    $sections_result = $this->getAll("/brandfolders/$brandfolder_id/sections", $query_params);
+    $result = $this->request('GET', "/brandfolders/$brandfolder_id/sections", $query_params);
+
+    if ($result) {
+      $this->processResultData($result);
+    }
+
+    return false;
+  }
+
+  /**
+   * List all Sections in a Brandfolder (combining all pages of results).
+   *
+   * @param string|null $brandfolder_id
+   *  The ID of the Brandfolder from which to list Sections. If not provided,
+   *  we will attempt to use the default Brandfolder, if defined.
+   *
+   * @return object|false
+   *
+   * @see https://developers.brandfolder.com/docs/#list-sections
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $sections = $bf->listAllSectionsInBrandfolder($brandfolder_id);
+   *
+   *  // Example of processing the result data.
+   *  if ($sections) {
+   *    foreach ($sections->data as $section) {
+   *      echo "{$section->attributes->name} ({$section->id}). Default asset type: {$section->attributes->default_asset_type} \n";
+   *    }
+   *  }
+   * @endcode
+   */
+  public function listAllSectionsInBrandfolder(string $brandfolder_id = NULL): object|false {
+    if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
+      $brandfolder_id = $this->default_brandfolder_id;
+    }
+
+    return $this->getAll("/brandfolders/$brandfolder_id/sections");
+  }
+
+  /**
+   * Get an array containing the names of all Sections in a Brandfolder,
+   * keyed by Section ID.
+   *
+   * @param string|null $brandfolder_id
+   *  The ID of the Brandfolder from which to list Sections. If not provided,
+   *  we will attempt to use the default Brandfolder, if defined.
+   *
+   * @return array|false
+   *
+   * @see https://developers.brandfolder.com/?http#sections
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $sections = $bf->listAllSectionNamesInBrandfolder($brandfolder_id);
+   *
+   *  // Example of processing the result data.
+   *  echo "Sections in Brandfolder: \n";
+   *  if ($sections) {
+   *    foreach ($sections as $section_id => $section_name) {
+   *      echo "{$section_name} ({$section_id}) \n";
+   *    }
+   *  }
+   * @endcode
+   */
+  public function listAllSectionNamesInBrandfolder(string $brandfolder_id = NULL): array|false {
+    if (is_null($brandfolder_id)) {
+      if (is_null($this->default_brandfolder_id)) {
+        $this->status = 0;
+        $this->message = 'A Brandfolder ID must be provided or a default Brandfolder must be set.';
+
+        return false;
+      }
+      $brandfolder_id = $this->default_brandfolder_id;
+    }
+
+    $sections_result = $this->getAll("/brandfolders/$brandfolder_id/sections");
     if ($sections_result) {
-      if ($simple_format) {
-        $sections = [];
-        foreach ($sections_result->data as $section) {
-          $sections[$section->id] = $section->attributes->name;
-        }
-
-        return $sections;
+      $sections = [];
+      foreach ($sections_result->data as $section) {
+        $sections[$section->id] = $section->attributes->name;
       }
-      else {
 
-        return $sections_result;
-      }
+      return $sections;
     }
 
     return false;
@@ -572,6 +844,22 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#fetch-a-section
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $section = $bf->fetchSection($section_id, ['include' => 'brandfolder']);
+   *
+   *  // Example of processing the result data.
+   *  if ($section) {
+   *    echo "{$section->attributes->name} ({$section->id}) \n";
+   *    if (!empty($section->brandfolders)) {
+   *      $brandfolder = reset($section->brandfolders);
+   *      echo "  Brandfolder: {$brandfolder->name} ({$brandfolder->id}). Slug: {$brandfolder->slug}. \n";
+   *    }
+   *  }
+   * @endcode
+   *
+   * @todo: The API appears to have a bug whereby no assets are returned when specifying "?include=assets".
    */
   public function fetchSection(string $section_id, ?array $query_params = []): object|false {
     $result = $this->request('GET', "/sections/$section_id", $query_params);
@@ -1712,66 +2000,67 @@ class BrandfolderClient {
    * @param array|null $query_params
    *
    * @code
-   * $bf_client = new Brandfolder($api_key);
-   * $query_params = [
-   *   'include' => 'asset',
-   *   'fields' => 'cdn_url',
-   * ];
-   * $attachments = $bf_client->listAttachments('brandfolder', $brandfolder_id, $query_params);
-   * // Sample output:
-   * // {
-   * //   "data": [
-   * //     0 => {
-   * //       "id": "attachment-id-abc-123",
-   * //       "type": "attachments",
-   * //       "attributes": {
-   * //         "filename": "example.jpg",
-   * //         "url": "https://assets2.brandfolder.io/bf-boulder-prod/attachment-id-abc-123/v/12345/original/example.jpg",
-   * //         "cdn_url": "https://cdn.bfldr.com/DEFG123/at/attachment-id-abc-123/example.jpg?auto=webp&format=png",
-   * //         "thumbnail_url": "https://thumbs.bfldr.com/at/attachment-id-abc-123?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
-   * //         "size": 123456,
-   * //         ...
-   * //       },
-   * //       "relationships": {
-   * //         "asset": {
-   * //           "data": {
-   * //             "id": "asset-id-abc-123",
-   * //             "type": "generic_files"
-   * //           }
-   * //         }
-   * //       },
-   * //       "generic_files": [
-   * //         "asset-id-abc-123": {
-   * //           "id": "asset-id-abc-123",
-   * //           "name": "Example JPG Asset",
-   * //           "approved": true,
-   * //           "thumbnail_url": "https://thumbs.bfldr.com/as/asset-id-abc-123?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
-   * //           ...
-   * //         }
-   * //       ]
-   * //     },
-   * //     ...
-   * //   ],
-   * //   "included": [
-   * //     "generic_files": [
-   * //       "asset-id-abc-123": {
-   * //         "id": "asset-id-abc-123",
-   * //         "name": "Example JPG Asset",
-   * //         "approved": true,
-   * //         "thumbnail_url": "https://thumbs.bfldr.com/as/asset-id-abc-123?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
-   * //         ...
-   * //       },
-   * //       "asset-id-def-456": {
-   * //         "id": "asset-id-def-456",
-   * //         "name": "Another Asset Linked to A Different Attachment",
-   * //         "approved": true,
-   * //         "thumbnail_url": "https://thumbs.bfldr.com/as/asset-id-def-456?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
-   * //         ...
-   * //       },
-   * //       ...
-   * //     ]
-   * //   ]
-   * // }
+   *  $bf = new BrandfolderClient($api_key);
+   *  $query_params = [
+   *    'include' => 'asset',
+   *    'fields' => 'cdn_url',
+   *  ];
+   *  $attachments = $bf->listAttachments('brandfolder', $brandfolder_id, $query_params);
+   *
+   *  // Sample output:
+   *  // {
+   *  //   "data": [
+   *  //     0 => {
+   *  //       "id": "attachment-id-abc-123",
+   *  //       "type": "attachments",
+   *  //       "attributes": {
+   *  //         "filename": "example.jpg",
+   *  //         "url": "https://assets2.brandfolder.io/bf-boulder-prod/attachment-id-abc-123/v/12345/original/example.jpg",
+   *  //         "cdn_url": "https://cdn.bfldr.com/DEFG123/at/attachment-id-abc-123/example.jpg?auto=webp&format=png",
+   *  //         "thumbnail_url": "https://thumbs.bfldr.com/at/attachment-id-abc-123?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
+   *  //         "size": 123456,
+   *  //         ...
+   *  //       },
+   *  //       "relationships": {
+   *  //         "asset": {
+   *  //           "data": {
+   *  //             "id": "asset-id-abc-123",
+   *  //             "type": "generic_files"
+   *  //           }
+   *  //         }
+   *  //       },
+   *  //       "generic_files": [
+   *  //         "asset-id-abc-123": {
+   *  //           "id": "asset-id-abc-123",
+   *  //           "name": "Example JPG Asset",
+   *  //           "approved": true,
+   *  //           "thumbnail_url": "https://thumbs.bfldr.com/as/asset-id-abc-123?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
+   *  //           ...
+   *  //         }
+   *  //       ]
+   *  //     },
+   *  //     ...
+   *  //   ],
+   *  //   "included": [
+   *  //     "generic_files": [
+   *  //       "asset-id-abc-123": {
+   *  //         "id": "asset-id-abc-123",
+   *  //         "name": "Example JPG Asset",
+   *  //         "approved": true,
+   *  //         "thumbnail_url": "https://thumbs.bfldr.com/as/asset-id-abc-123?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
+   *  //         ...
+   *  //       },
+   *  //       "asset-id-def-456": {
+   *  //         "id": "asset-id-def-456",
+   *  //         "name": "Another Asset Linked to A Different Attachment",
+   *  //         "approved": true,
+   *  //         "thumbnail_url": "https://thumbs.bfldr.com/as/asset-id-def-456?expiry=1720620621&fit=bounds&height=162&sig=LONGSIGNATURE%3D%3D&width=262",
+   *  //         ...
+   *  //       },
+   *  //       ...
+   *  //     ]
+   *  //   ]
+   *  // }
    * @endcode
    *
    * @see https://developers.brandfolder.com/docs/#list-attachments
