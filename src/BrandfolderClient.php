@@ -2,7 +2,7 @@
 
 namespace Brandfolder;
 
-use GuzzleHttp\Client;
+use GuzzleHttp\Client as HttpClient;
 use GuzzleHttp\ClientInterface;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\InvalidArgumentException;
@@ -33,9 +33,9 @@ class BrandfolderClient {
   /**
    * HTTP client.
    *
-   * @var null|ClientInterface $client
+   * @var null|ClientInterface $http_client
    */
-  protected null|ClientInterface $client;
+  protected null|ClientInterface $http_client;
 
   /**
    * The REST API endpoint.
@@ -95,20 +95,20 @@ class BrandfolderClient {
   protected array $log_data = [];
 
   /**
-   * Brandfolder constructor.
+   * BrandfolderClient constructor.
    *
    * @param string $api_key
    * @param string|null $brandfolder_id
-   * @param \GuzzleHttp\ClientInterface|NULL $client
+   * @param \GuzzleHttp\ClientInterface|NULL $http_client
    */
-  public function __construct(string $api_key, string $brandfolder_id = NULL, ClientInterface $client = NULL) {
+  public function __construct(string $api_key, string $brandfolder_id = NULL, ClientInterface $http_client = NULL) {
     $this->api_key = $api_key;
     $this->default_brandfolder_id = $brandfolder_id;
 
-    if (is_null($client)) {
-      $client = new Client();
+    if (is_null($http_client)) {
+      $http_client = new HttpClient();
     }
-    $this->client = $client;
+    $this->http_client = $http_client;
   }
 
   /**
@@ -276,13 +276,13 @@ class BrandfolderClient {
    * @endcode
    */
   public function listBrandfolders(array $query_params = []): object|bool {
-    $result = $this->request('/brandfolders', $query_params);
+    $result = $this->request('GET', '/brandfolders', $query_params);
 
     if ($result) {
       $this->processResultData($result);
     }
 
-    return false;
+    return $result;
   }
 
   /**
@@ -358,10 +358,11 @@ class BrandfolderClient {
    *
    * @code
    *  $bf = new BrandfolderClient($api_key);
-   *  $brandfolder = $bf->fetchBrandfolder($brandfolder_id, ['include' => 'sections']);
+   *  $result = $bf->fetchBrandfolder($brandfolder_id, ['include' => 'sections']);
    *
    *  // Example of processing the result data.
-   *  if ($brandfolder) {
+   *  if ($result) {
+   *    $brandfolder = $result->data;
    *    echo "{$brandfolder->attributes->name} ({$brandfolder->id}) \n";
    *    if (!empty($brandfolder->sections)) {
    *      foreach ($brandfolder->sections as $section_id => $section) {
@@ -406,10 +407,11 @@ class BrandfolderClient {
    *
    * @code
    *  $bf = new BrandfolderClient($api_key);
-   *  $new_brandfolder = $bf->createBrandfolderInOrganization($organization_id, 'My Brandfolder', 'You expected this - Brandfolder's Brandfolder!', 'public');
+   *  $result = $bf->createBrandfolderInOrganization($organization_id, 'My Brandfolder', 'You expected this - Brandfolder's Brandfolder!', 'public');
    *
    *  // Example of processing the result data.
-   *  if ($new_brandfolder) {
+   *  if ($result) {
+   *    $new_brandfolder = $result->data;
    *    echo "New Brandfolder created: {$new_brandfolder->attributes->name} ({$new_brandfolder->id}) \n";
    *  }
    * @endcode
@@ -446,7 +448,7 @@ class BrandfolderClient {
   /**
    * Lists Collections to which the current user has access.
    *
-   * @param array $query_params
+   * @param array|null $query_params
    *
    * @return object|false
    *
@@ -454,11 +456,12 @@ class BrandfolderClient {
    *
    * @code
    *  $bf = new BrandfolderClient($api_key);
-   *  $collections = $bf->listCollectionsForUser(['include' => 'brandfolder']);
+   *  $result = $bf->listCollectionsForUser(['include' => 'brandfolder']);
    *
    *  // Example of processing the result data.
-   *  if ($collections) {
-   *    foreach ($collections->data as $collection) {
+   *  if ($result) {
+   *    $collections = $result->data;
+   *    foreach ($collections as $collection) {
    *      echo "{$collection->attributes->name} ({$collection->id}) \n";
    *      if (!empty($collection->brandfolders)) {
    *        $brandfolder = reset($collection->brandfolders);
@@ -486,10 +489,10 @@ class BrandfolderClient {
   }
 
   /**
-   * Gets Collections belonging to a certain Brandfolder.
+   * List Collections belonging to a given Brandfolder.
    *
    * @param string|null $brandfolder_id
-   * @param array $query_params
+   * @param array|null $query_params
    *
    * @return array|object|false
    *
@@ -497,11 +500,12 @@ class BrandfolderClient {
    *
    * @code
    *  $bf = new BrandfolderClient($api_key);
-   *  $collections = $bf->listCollectionsInBrandfolder($brandfolder_id, ['fields' => 'asset_count']);
+   *  $result = $bf->listCollectionsInBrandfolder($brandfolder_id, ['fields' => 'asset_count']);
    *
    *  // Example of processing the result data.
-   *  if ($collections) {
-   *    foreach ($collections->data as $collection) {
+   *  if ($result) {
+   *    $collections = $result->data;
+   *    foreach ($collections as $collection) {
    *      echo "{$collection->attributes->name} ({$collection->id}): {$collection->attributes->asset_count} assets \n";
    *    }
    *  }
@@ -615,6 +619,16 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#create-a-collection-in-a-brandfolder
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $new_collection = $bf->createCollectionInBrandfolder('My Collection', $brandfolder_id, 'The best collection ever!', 'my-coll');
+   *
+   *  // Example of processing the result data.
+   *  if ($new_collection) {
+   *    echo "New Collection created: {$new_collection->data->attributes->name} ({$new_collection->data->id}) \n";
+   *  }
+   * @endcode
    */
   public function createCollectionInBrandfolder(string $name, ?string $brandfolder_id = NULL, string $tagline = NULL, string $slug = NULL): object|false {
     if (is_null($brandfolder_id)) {
@@ -654,6 +668,21 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#fetch-a-collection
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->fetchCollection($collection_id, ['include' => 'brandfolder']);
+   *
+   *  // Example of processing the result data.
+   *  if ($result) {
+   *    $collection = $result->data;
+   *    echo "{$collection->attributes->name} ({$collection->id}) \n";
+   *    if (!empty($collection->brandfolders)) {
+   *      $brandfolder = reset($collection->brandfolders);
+   *      echo "  Brandfolder: {$brandfolder->name} ({$brandfolder->id}) \n";
+   *    }
+   *  }
+   * @endcode
    */
   public function fetchCollection(string $collection_id, ?array $query_params = []): object|false {
     $result = $this->request('GET', "/collections/$collection_id", $query_params);
@@ -728,6 +757,23 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/?http#sections
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->listSectionsInBrandfolder($brandfolder_id, ['include' => 'brandfolder']);
+   * 
+   *  // Example of processing the result data.
+   *  if ($result) {
+   *    $sections = $result->data;
+   *    foreach ($sections as $section) {
+   *      echo "{$section->attributes->name} ({$section->id}) \n";
+   *      if (!empty($section->brandfolders)) {
+   *        $brandfolder = reset($section->brandfolders);
+   *        echo "  Brandfolder: {$brandfolder->name} ({$brandfolder->id}) \n";
+   *      }
+   *    }
+   *  }
+   * @endcode
    */
   public function listSectionsInBrandfolder(string $brandfolder_id = NULL, array $query_params = []): object|false {
     if (is_null($brandfolder_id)) {
@@ -746,7 +792,7 @@ class BrandfolderClient {
       $this->processResultData($result);
     }
 
-    return false;
+    return $result;
   }
 
   /**
@@ -892,6 +938,17 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#create-a-section
+   * 
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->createSectionInBrandfolder('My New Section', 'GenericFile', $brandfolder_id, 2);
+   *  
+   *  // Example of processing the result data.
+   *  if ($result) {
+   *    $new_section = $result->data;
+   *    echo "New Section created: {$new_section->attributes->name} ({$new_section->id}) \n";
+   *  }
+   * @endcode
    */
   public function createSectionInBrandfolder(string $name, ?string $default_asset_type = 'GenericFile', ?string $brandfolder_id = NULL, int $position = NULL): object|false {
     if (is_null($brandfolder_id)) {
@@ -946,6 +1003,47 @@ class BrandfolderClient {
    * @return array|object|false
    *
    * @see https://developer.brandfolder.com/docs/#list-custom-field-keys-for-a-brandfolder
+   * 
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  
+   *  // Example A.
+   *  $result = $bf->listCustomFields($brandfolder_id);
+   *  if ($result) {
+   *    foreach ($result->data as $custom_field) {
+   *      echo "Custom field key name: {$custom_field->attributes->name} (ID: {$custom_field->id}) \n";
+   *      echo "  Allowed values: ";
+   *      if ($custom_field->attributes->restricted) {
+   *        echo implode(', ', $custom_field->attributes->allowed_values) . "\n";
+   *      }
+   *      else {
+   *        echo "Any. \n";
+   *      }
+   *    }
+   *  }
+   * 
+   *  // Example B.
+   *  $result = $bf->listCustomFields($brandfolder_id, TRUE);
+   *  if ($result) {
+   *    foreach ($result->data as $custom_field) {
+   *      $key_name = $custom_field->attributes->name;
+   *      echo "Custom field key name: {$key_name} \n";
+   *      $values_list = $custom_field->attributes->values;
+   *      echo "  All values currently in use: " . !empty($values_list) ? implode(', ', $values_list) : 'None' . "\n";
+   *    }
+   *  }
+   * 
+   *  // Example C.
+   *  $result = $bf->listCustomFields($brandfolder_id, TRUE, TRUE);
+   *  if ($result) {
+   *    foreach ($result as $custom_field_name => $values) {
+   *      echo "$custom_field_name: \n";
+   *      foreach ($values as $value) {
+   *        echo "  $value \n";
+   *      }
+   *    }
+   *  }
+   * @endcode
    */
   public function listCustomFields(string $brandfolder_id = NULL, bool $include_values = false, bool $simple_format = false): array|object|false {
     if (is_null($brandfolder_id)) {
@@ -1020,6 +1118,28 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developer.brandfolder.com/docs/#create-custom-field-keys-for-a-brandfolder
+   * 
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  
+   *  $custom_fields = [
+   *    // Controlled custom field (allowed values are restricted).
+   *    [
+   *      'name' => 'favorite_coffee',
+   *      'allowed_values' => [
+   *        'Peruvian',
+   *        'Colombian',
+   *        'Ethiopian',
+   *        'Sumatran',
+   *        'Global Blend',
+   *      ]
+   *    ],
+   *    // Uncontrolled custom field (any string value is allowed).
+   *    [
+   *      'name' => 'vortex_strength'
+   *    ]
+   *  ];
+   *  $result = $bf->createCustomFieldKeysForBrandfolder($custom_fields, $brandfolder_id);
    */
   public function createCustomFieldKeysForBrandfolder(array $custom_field_data, ?string $brandfolder_id = NULL): object|false {
     if (is_null($brandfolder_id)) {
@@ -2979,7 +3099,7 @@ class BrandfolderClient {
     }
 
     try {
-      $response = $this->client->request($method, $url, $options);
+      $response = $this->http_client->request($method, $url, $options);
       $status_code = $response->getStatusCode();
       $this->status = $status_code;
       $this->message = $response->getReasonPhrase();
