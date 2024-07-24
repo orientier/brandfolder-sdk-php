@@ -1,2 +1,12 @@
 /vendor
 /composer.lock
+
+################
+# Documentation
+################
+# Main directory containing generated docs.
+/docs
+# Auto-generated directory containing cache, etc.
+/.phpdoc
+# Local phpDocumentor config files.
+phpdoc.xml

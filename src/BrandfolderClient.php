@@ -172,28 +172,28 @@ class BrandfolderClient {
   /**
    * Gets Brandfolder Organizations to which the current user belongs.
    *
+   * ```php
+   * $bf = new BrandfolderClient($api_key);
+   *   $organizations = $bf->listOrganizations(['include' => 'brandfolders']);
+   *
+   *   // Example of processing the result data.
+   *   if ($organizations) {
+   *     foreach ($organizations->data as $org) {
+   *       echo "{$org->attributes->name} ({$org->attributes->id}) \n";
+   *       if (!empty($org->brandfolders)) {
+   *         foreach ($org->brandfolders as $brandfolder_id => $brandfolder) {
+   *           echo "  {$brandfolder->name} ($brandfolder_id) \n";
+   *         }
+   *       }
+   *     }
+   *   }
+   * ```
+   *
    * @param array $query_params
    *
    * @return object|false
    *
    * @see https://developers.brandfolder.com/?http#list-organizations
-   *
-   * @code
-   *  $bf = new BrandfolderClient($api_key);
-   *  $organizations = $bf->listOrganizations(['include' => 'brandfolders']);
-   *
-   *  // Example of processing the result data.
-   *  if ($organizations) {
-   *    foreach ($organizations->data as $org) {
-   *      echo "{$org->attributes->name} ({$org->attributes->id}) \n";
-   *      if (!empty($org->brandfolders)) {
-   *        foreach ($org->brandfolders as $brandfolder_id => $brandfolder) {
-   *          echo "  {$brandfolder->name} ($brandfolder_id) \n";
-   *        }
-   *      }
-   *    }
-   *  }
-   * @endcode
    */
   public function listOrganizations(array $query_params = []): object|false {
 
@@ -761,7 +761,7 @@ class BrandfolderClient {
    * @code
    *  $bf = new BrandfolderClient($api_key);
    *  $result = $bf->listSectionsInBrandfolder($brandfolder_id, ['include' => 'brandfolder']);
-   * 
+   *
    *  // Example of processing the result data.
    *  if ($result) {
    *    $sections = $result->data;
@@ -938,11 +938,11 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#create-a-section
-   * 
+   *
    * @code
    *  $bf = new BrandfolderClient($api_key);
    *  $result = $bf->createSectionInBrandfolder('My New Section', 'GenericFile', $brandfolder_id, 2);
-   *  
+   *
    *  // Example of processing the result data.
    *  if ($result) {
    *    $new_section = $result->data;
@@ -1003,10 +1003,10 @@ class BrandfolderClient {
    * @return array|object|false
    *
    * @see https://developer.brandfolder.com/docs/#list-custom-field-keys-for-a-brandfolder
-   * 
+   *
    * @code
    *  $bf = new BrandfolderClient($api_key);
-   *  
+   *
    *  // Example A.
    *  $result = $bf->listCustomFields($brandfolder_id);
    *  if ($result) {
@@ -1021,7 +1021,7 @@ class BrandfolderClient {
    *      }
    *    }
    *  }
-   * 
+   *
    *  // Example B.
    *  $result = $bf->listCustomFields($brandfolder_id, TRUE);
    *  if ($result) {
@@ -1032,7 +1032,7 @@ class BrandfolderClient {
    *      echo "  All values currently in use: " . !empty($values_list) ? implode(', ', $values_list) : 'None' . "\n";
    *    }
    *  }
-   * 
+   *
    *  // Example C.
    *  $result = $bf->listCustomFields($brandfolder_id, TRUE, TRUE);
    *  if ($result) {
@@ -1118,10 +1118,10 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developer.brandfolder.com/docs/#create-custom-field-keys-for-a-brandfolder
-   * 
+   *
    * @code
    *  $bf = new BrandfolderClient($api_key);
-   *  
+   *
    *  $custom_fields = [
    *    // Controlled custom field (allowed values are restricted).
    *    [
@@ -1192,6 +1192,21 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developer.brandfolder.com/docs/#update-a-custom-field-key
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *
+   *  $new_coffee_options = [
+   *    'Costa Rican',
+   *    'Peruvian',
+   *    'Colombian',
+   *    'Ethiopian',
+   *    'Sumatran',
+   *    'Global Blend'
+   *  ];
+   *
+   *  $result = $bf->updateCustomFieldKey($custom_field_id, ['allowed_values' => $new_coffee_options]);
+   * @endcode
    */
   public function updateCustomFieldKey(string $custom_field_id, array $attributes): object|false {
     // Remove any invalid attributes, and ensure that we have at least one
@@ -1227,6 +1242,14 @@ class BrandfolderClient {
    *  Returns true if the custom field key was successfully deleted.
    *
    * @see https://developers.brandfolder.com/docs/#delete-a-custom-field-key
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->deleteCustomFieldKey($custom_field_key_id);
+   *  if ($result) {
+   *    echo "Custom field key $custom_field_key_id was successfully deleted. \n";
+   *  }
+   * @endcode
    */
   public function deleteCustomFieldKey(string $custom_field_key_id): bool {
     $result = $this->request('DELETE', "/custom_field_keys/$custom_field_key_id");
@@ -1242,11 +1265,44 @@ class BrandfolderClient {
    * @param string|null $brandfolder_id
    * @param bool $simple_format
    *  If true, return a flat array keyed by label IDs and containing label
-   *  names.
+   *  names. Otherwise, return a multidimensional array representing the full
+   *  hierarchy of labels, with all attributes for each label item.
    *
    * @return array|false
    *
    * @see https://developers.brandfolder.com/?http#list-labels
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *
+   *  // Example A. Get a multidimensional array representing the full set of
+   *  // labels, with hierarchy preserved.
+   *  $labels = $bf->listLabelsInBrandfolder($brandfolder_id);
+   *  if ($labels) {
+   *    // Iterate through the first two tiers of labels.
+   *    foreach ($labels as $label_id => $label_data) {
+   *      $label = $label_data->label;
+   *      echo "Label: {$label->attributes->name} ($label_id) <br />";
+   *      if (!empty($label_data->children)) {
+   *        foreach ($label_data->children as $child_id => $child_data) {
+   *          $child = $child_data->label;
+   *          echo "&nbsp; Nested label: {$child->attributes->name} ($child_id) <br />";
+   *          // There could be any number of tiers in the label hierarchy.
+   *          // To fully process the tree, you would need to use a recursive
+   *          // function or comparable algorithm.
+   *        }
+   *      }
+   *    }
+   *  }
+   *
+   *  // Example B. Get a flat array of label names keyed by label IDs.
+   *  $labels = $bf->listLabelsInBrandfolder($brandfolder_id, TRUE);
+   *  if ($labels) {
+   *    foreach ($labels as $label_id => $label_name) {
+   *      echo "Label: $label_name ($label_id) \n";
+   *    }
+   *  }
+   * @endcode
    */
   public function listLabelsInBrandfolder(string $brandfolder_id = NULL, bool $simple_format = false): array|false {
     if (is_null($brandfolder_id)) {
@@ -1266,14 +1322,15 @@ class BrandfolderClient {
       return false;
     }
 
-    $structured_labels = [];
 
     if ($simple_format) {
+      $structured_labels = [];
       foreach ($labels_result->data as $label) {
         $structured_labels[$label->id] = $label->attributes->name;
       }
     }
     else {
+      $structured_labels = new stdClass();
       // First, group labels by tier/depth, so we can then process with
       // confidence that any given label's ancestors have already been
       // placed in the structured array.
@@ -1295,23 +1352,24 @@ class BrandfolderClient {
           $ancestor =& $structured_labels;
           while (count($lineage) > 0) {
             $younger_ancestor = array_shift($lineage);
-            if (isset($ancestor['children'][$younger_ancestor])) {
-              $ancestor =& $ancestor['children'][$younger_ancestor];
+            if (isset($ancestor->children[$younger_ancestor])) {
+              $ancestor =& $ancestor->children[$younger_ancestor];
             }
             else {
               break;
             }
           }
-          $label_item = [
-            'label' => $label,
-          ];
-          $ancestor['children'][$label->id] = $label_item;
+
+          $label_item = new stdClass();
+          $label_item->label = $label;
+
+          $ancestor->children[$label->id] = $label_item;
         }
       }
-      // The top-level of the array should consist of label items. There is
-      // no need for a "children" sub-array.
-      if (isset($structured_labels['children']) && is_array($structured_labels['children'])) {
-        $structured_labels = $structured_labels['children'];
+      // The top-level of the result structure should simply be an array of
+      // label items.
+      if (isset($structured_labels->children) && is_array($structured_labels->children)) {
+        $structured_labels = $structured_labels->children;
       }
     }
 
@@ -1326,6 +1384,16 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#fetch-a-label
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *
+   *  $result = $bf->fetchLabel($label_id);
+   *  if ($result) {
+   *    $label = $result->data;
+   *    echo "Label: {$label->attributes->name} ({$label->id}) \n";
+   *  }
+   * @endcode
    */
   public function fetchLabel(string $label_id): object|false {
 
@@ -1341,11 +1409,22 @@ class BrandfolderClient {
    *  The ID of the Brandfolder in which to create the label. If not provided,
    *  we will attempt to use the default Brandfolder if one is defined.
    * @param string|null $parent_id
-   *  The ID/key of the parent label, if any.
+   *  The ID/key of the parent label, if any. If provided, the new label will
+   *  be nested beneath the parent label. Otherwise, it will be placed at the
+   *  top level.
    *
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#create-a-label
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->createLabelInBrandfolder('My New Label', $brandfolder_id, $parent_id);
+   *  if ($result) {
+   *    $new_label = $result->data;
+   *    echo "New Label created: {$new_label->attributes->name} ({$new_label->id}) \n";
+   *  }
+   * @endcode
    */
   public function createLabelInBrandfolder(string $name, ?string $brandfolder_id = NULL, ?string $parent_id = NULL): object|false {
     if (is_null($brandfolder_id)) {
@@ -1385,6 +1464,14 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#update-a-label
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->updateLabel($label_id, 'My New Label Name');
+   *  if ($result) {
+   *    echo "Label renamed successfully. \n";
+   *  }
+   * @endcode
    */
   public function updateLabel(string $label_id, string $new_name): object|false {
     $body = [
@@ -1409,6 +1496,15 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#move-a-label
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->moveLabel($label_id, $new_parent_id);
+   *
+   *  if ($result) {
+   *    echo "Label $label_id moved successfully. \n";
+   *  }
+   * @endcode
    */
   public function moveLabel(string $label_id, string $new_parent_id): object|false {
     if ($new_parent_id === 'root') {
@@ -1433,6 +1529,14 @@ class BrandfolderClient {
    * @return bool
    *
    * @see https://developers.brandfolder.com/docs/#delete-a-label
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->deleteLabel($label_id);
+   *  if ($result) {
+   *    echo "Label $label_id was successfully deleted. \n";
+   *  }
+   * @endcode
    */
   public function deleteLabel(string $label_id): bool {
     $result = $this->request('DELETE', "/labels/$label_id");
@@ -1440,7 +1544,6 @@ class BrandfolderClient {
 
     return $is_success;
   }
-
 
   /**
    * Fetches an individual asset.
@@ -1451,6 +1554,32 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/?python#fetch-an-asset
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *
+   *  // Example A. Get standard asset data.
+   *  $result = $bf->fetchAsset($asset_id);
+   *  if ($result) {
+   *    $asset = $result->data;
+   *    echo "Asset: {$asset->attributes->name} ({$asset->id}) <br />";
+   *    echo "&nbsp; Description: {$asset->attributes->description} <br />";
+   *    echo "&nbsp; Thumbnail: <img src=\"{$asset->attributes->thumbnail_url}\" /> <br />";
+   *  }
+   *
+   *  // Example B. Get asset data with CDN URL and attachments.
+   *  $result = $bf->fetchAsset($asset_id, ['fields' => 'cdn_url', 'include' => 'attachments']);
+   *  if ($result) {
+   *    $asset = $result->data;
+   *    echo "Asset: {$asset->attributes->name} ({$asset->id}) <br />";
+   *    echo "&nbsp; Default CDN Image: <img src=\"{$asset->attributes->cdn_url}\" /> <br />";
+   *    if (!empty($asset->attachments)) {
+   *      foreach ($asset->attachments as $attachment) {
+   *        echo "&nbsp; Attachment: {$attachment->filename} ({$attachment->id}) <br />";
+   *      }
+   *    }
+   *  }
+   * @endcode
    */
   public function fetchAsset(string $asset_id, ?array $query_params = []): object|bool {
     $result = $this->request('GET', "/assets/$asset_id", $query_params);
@@ -1472,6 +1601,14 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/#update-an-attachment
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->updateAttachment($attachment_id, 'https://example.com/updated-image.jpg', 'updated-image.jpg');
+   *  if ($result) {
+   *    echo "Attachment $attachment_id updated successfully. \n";
+   *  }
+   * @endcode
    */
   public function updateAttachment(string $attachment_id, string $url = NULL, string $filename = NULL): object|false {
     $attributes = [];
@@ -1499,6 +1636,17 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developers.brandfolder.com/docs/#fetch-an-attachment
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->fetchAttachment($attachment_id, ['fields' => 'cdn_url']);
+   *  if ($result) {
+   *    $attachment = $result->data;
+   *    echo "Attachment: {$attachment->attributes->filename} ({$attachment->id}) <br />";
+   *    echo "&nbsp; CDN URL: {$attachment->attributes->cdn_url} <br />";
+   *    echo "&nbsp; File size (in bytes): " . $attachment->attributes->size . " <br />";
+   *  }
+   * @endcode
    */
   public function fetchAttachment(string $attachment_id, ?array $params = []): object|false {
     $result = $this->request('GET', "/attachments/$attachment_id", $params);
@@ -1518,6 +1666,14 @@ class BrandfolderClient {
    * @return bool true on successful deletion. false on failure.
    *
    * @see https://developers.brandfolder.com/docs/#delete-an-attachment
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *  $result = $bf->deleteAttachment($attachment_id);
+   *  if ($result) {
+   *    echo "Attachment $attachment_id was successfully deleted.";
+   *  }
+   * @endcode
    */
   public function deleteAttachment(string $attachment_id): bool {
     $result = $this->request('DELETE', "/attachments/$attachment_id");
@@ -1543,6 +1699,26 @@ class BrandfolderClient {
    * @return object|false
    *
    * @see https://developer.brandfolder.com/#create-assets
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *
+   *  $attachments = [
+   *    [
+   *      'url' => 'https://example.com/image-01.jpg',
+   *      'filename' => 'image-01.jpg',
+   *    ],
+   *    [
+   *      'url' => 'https://example.com/image-02.jpg',
+   *      'filename' => 'image-02.jpg',
+   *    ],
+   *  ];
+   *  $result = $bf->createAsset('My New Asset', $attachments, '$existing_section_key', 'A description of the asset.');
+   *  if ($result) {
+   *    $new_asset = $result->data[0];
+   *    echo "New Asset created: {$new_asset->attributes->name} ({$new_asset->id}) \n";
+   *  }
+   * @endcode
    */
   public function createAsset(string $name, array $attachments, string $section, string $description = NULL, string $brandfolder = NULL, string $collection = NULL, string|int|\DateTime $availability_start = NULL, string|int|\DateTime $availability_end = NULL): object|false {
     $asset = [
@@ -1582,6 +1758,42 @@ class BrandfolderClient {
    * @return array|false
    *
    * @see https://developer.brandfolder.com/#create-assets
+   *
+   * @code
+   *  $bf = new BrandfolderClient($api_key);
+   *
+   *  $assets = [
+   *    [
+   *      'name' => 'My New Asset 1',
+   *      'description' => 'The first asset.',
+   *      'availability_start' => 'tomorrow',
+   *      'attachments' => [
+   *        [
+   *          'url' => 'https://example.com/image-01.jpg',
+   *          'filename' => 'image-01.jpg',
+   *        ]
+   *      ],
+   *    ],
+   *    [
+   *      'name' => 'My New Asset 2',
+   *      'description' => 'The second asset.',
+   *      'availability_end' => '2025-12-31',
+   *      'attachments' => [
+   *        [
+   *          'url' => 'https://example.com/image-02.jpg',
+   *          'filename' => 'image-02.jpg',
+   *        ]
+   *      ],
+   *    ],
+   *  ];
+   *  $result = $bf->createAssets($assets, $existing_section_key);
+   *  if ($result) {
+   *    echo "New assets created: \n";
+   *    foreach ($result as $new_asset) {
+   *      echo "  {$new_asset->attributes->name} ({$new_asset->id}) \n";
+   *    }
+   *  }
+   * @endcode
    */
   public function createAssets(array $assets, string $section, string $brandfolder = NULL, string $collection = NULL): array|false{
     if (is_null($brandfolder) && is_null($collection)) {
