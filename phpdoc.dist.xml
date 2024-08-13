@@ -5,15 +5,17 @@
         xmlns="https://www.phpdoc.org"
         xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/phpDocumentor/phpDocumentor/master/data/xsd/phpdoc.xsd"
 >
+    <title>Brandfolder PHP SDK</title>
     <paths>
         <output>./docs</output>
         <cache>build/cache</cache>
     </paths>
     <version number="4.0.0">
-        <api>
+        <api format="php">
             <source dsn=".">
                 <path>src</path>
             </source>
+            <default-package-name>Brandfolder</default-package-name>
         </api>
     </version>
     <setting name="template.color" value="cyan"/>
