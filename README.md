@@ -13,7 +13,8 @@ Brandfolder is a visually-elegant and user-friendly Digital Asset Management sof
 ## Description
 
 This project was created and is overseen by the team at [Orientier](https://www.orientier.com). It is maintained/developed in fits and starts according to customer priorities. Feel free to [file issues](https://github.com/orientier/brandfolder-sdk-php/issues) with bug reports & feature requests, and contact us to discuss ways in which you would like to use the SDK.
-The code contains fairly extensive inline documentation, and we generate a navigable [documentation site](https://docs.orientier.com/brandfolder-sdk-php) from this using [phpDocumentor](https://www.phpdoc.org/).
+
+The code contains fairly extensive inline documentation, and we generate a navigable [documentation site](https://docs.orientier.com/brandfolder-sdk-php) from this using [phpDocumentor](https://www.phpdoc.org/). The docs include code samples for nearly all methods. Check them out and feel free to contribute!
 
 ## References
 
