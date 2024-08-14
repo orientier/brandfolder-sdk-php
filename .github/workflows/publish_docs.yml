@@ -52,9 +52,13 @@ jobs:
           key: ${{ runner.os }}-phpdocumentor-${{ github.sha }}
           restore-keys: ${{ runner.os }}-phpdocumentor-
 
-      # Create output directories.
+      # Create output directory.
       - name: Create output directories
         run: mkdir -p docs/brandfolder-sdk-php
+
+      # Copy favicon into docs output directory.
+      - name: Copy favicon
+        run: cp source/assets/favicon.ico docs/brandfolder-sdk-php/favicon.ico
 
       # Notice: -d xdebug.mode=off is required due to a bug/workaround
       # Issue: https://github.com/phpDocumentor/phpDocumentor/issues/3642#issuecomment-1912354577

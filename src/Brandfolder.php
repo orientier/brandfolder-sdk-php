@@ -10,6 +10,8 @@ namespace Brandfolder;
  * @deprecated Use `BrandfolderClient` instead. The `Brandfolder` class name is
  * retained here for backward compatibility, but may be reallocated in a future
  * release.
+ *
+ * @see BrandfolderClient
  */
 class Brandfolder extends BrandfolderClient
 {
