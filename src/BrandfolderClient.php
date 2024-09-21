@@ -2576,7 +2576,11 @@ class BrandfolderClient
         if (!$labels_result) {
             return false;
         }
-
+        // If the request was successful but there simply are no labels, short
+        // circuit and return an empty array.
+        if (empty($labels_result->data)) {
+          return [];
+        }
 
         if ($simple_format) {
             $structured_labels = [];
