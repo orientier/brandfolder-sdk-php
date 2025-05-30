@@ -2584,45 +2584,31 @@ class BrandfolderClient
                 $structured_labels[$label->id] = $label->attributes->name;
             }
         } else {
-            $structured_labels = new stdClass();
-            // First, group Labels by tier/depth, so we can then process with
-            // confidence that any given Label's ancestors have already been
-            // placed in the structured array.
-            $labels_by_tier = [];
-            foreach ($labels_result->data as $label) {
-                $unique_and_sortable_key = $label->attributes->position . '_' . $label->id;
-                $labels_by_tier[$label->attributes->depth][$unique_and_sortable_key] = $label;
+            $structured_labels = [];
+
+            $lookup = [];
+            foreach ($labels_result->data as $item) {
+                $id = $item->id;
+                $lookup[$id] = [
+                    'label' => $item,
+                    'children' => [],
+                ];
             }
-            foreach ($labels_by_tier as $tier => $labels) {
-                // Sort Labels by position (it's OK if Labels from various parents
-                // are interspersed at this point).
-                ksort($labels, SORT_NATURAL);
-                foreach ($labels as $label) {
-                    $lineage = $label->attributes->path;
-                    // Remove the Label itself from the end of the path array.
-                    array_pop($lineage);
-                    // Walk through the path/lineage and place the Label in the
-                    // appropriate spot.
-                    $ancestor =& $structured_labels;
-                    while (count($lineage) > 0) {
-                        $younger_ancestor = array_shift($lineage);
-                        if (isset($ancestor->children[$younger_ancestor])) {
-                            $ancestor =& $ancestor->children[$younger_ancestor];
-                        } else {
-                            break;
-                        }
-                    }
 
-                    $label_item = new stdClass();
-                    $label_item->label = $label;
+            // Build the labels structure
+            foreach ($labels_result->data as $item) {
+                $path = $item->attributes->path;
+                $depth = $item->attributes->depth;
+                $id = $item->id;
 
-                    $ancestor->children[$label->id] = $label_item;
+                // If depth is 1, it's a root node
+                if ($depth === 1) {
+                    $structured_labels[$id] = &$lookup[$id];
+                } else {
+                    // The parent is always the second-to-last item in the path
+                    $parentId = $path[$depth - 2];
+                    $lookup[$parentId]['children'][$id] = &$lookup[$id];
                 }
-            }
-            // The top-level of the result structure should simply be an array of
-            // Label items.
-            if (isset($structured_labels->children) && is_array($structured_labels->children)) {
-                $structured_labels = $structured_labels->children;
             }
         }
 
