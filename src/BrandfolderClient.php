@@ -2597,6 +2597,7 @@ class BrandfolderClient
                 $unique_and_sortable_key = $label->attributes->position . '_' . $label->id;
                 $labels_by_tier[$label->attributes->depth][$unique_and_sortable_key] = $label;
             }
+            ksort($labels_by_tier, SORT_NATURAL);
             foreach ($labels_by_tier as $tier => $labels) {
                 // Sort Labels by position (it's OK if Labels from various parents
                 // are interspersed at this point).
