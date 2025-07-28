@@ -42,7 +42,7 @@ jobs:
       # TODO: confirm this is the correct GPG key
       # Blocker: https://github.com/phpDocumentor/phpDocumentor/issues/3694
       - name: Install phpDocumentor
-        run: ${{ github.workspace }}/tools/phive install phpDocumentor --trust-gpg-keys 8AC0BAA79732DD42
+        run: ${{ github.workspace }}/tools/phive install phpDocumentor --trust-gpg-keys 8AC0BAA79732DD42,6DA3ACC4991FFAE5
 
       - name: Cache phpDocumentor build files
         id: phpdocumentor-cache
